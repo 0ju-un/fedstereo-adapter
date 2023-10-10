@@ -39,7 +39,6 @@ CITY_SEQUENCES = [
     '2011_09_29_drive_0026_sync',
     '2011_09_29_drive_0071_sync',
 ]
-
 RESIDENTIAL_SEQUENCES = [
     '2011_09_26_drive_0019_sync',
     '2011_09_26_drive_0020_sync',
@@ -63,7 +62,6 @@ RESIDENTIAL_SEQUENCES = [
     '2011_10_03_drive_0027_sync',
     '2011_10_03_drive_0034_sync',
 ]
-
 CAMPUS_SEQUENCES = [
     '2011_09_28_drive_0016_sync',
     '2011_09_28_drive_0021_sync',
@@ -89,6 +87,7 @@ ROAD_SEQUENCES = [
     '2011_10_03_drive_0047_sync',
 ]
 
+
 def get_sgm_disp(imageL, imageR,
             right_disp = False,
             min_disparity=0,
@@ -101,23 +100,22 @@ def get_sgm_disp(imageL, imageR,
             speckle_range=2,
             pre_filter_cap=63,
             mode=cv2.STEREO_SGBM_MODE_SGBM_3WAY):
-    # SGBM Parameters
-    # http://answers.opencv.org/question/182049/pythonstereo-disparity-quality-problems/?answer=183650#post-id-183650
-    # window_size: default 3; 5 Works nicely
-    #              7 for SGBM reduced size image;
-    #              15 for SGBM full size image (1300px and above)
-    # num_disparity: max_disp has to be dividable by 16 f. E. HH 192, 256
+    """get initial sgm disparity map from left and right image pair using
+
+        * SGBM Parameters
+        http://answers.opencv.org/question/182049/pythonstereo-disparity-quality-problems/?answer=183650#post-id-183650
+        window_size: default 3; 5 Works nicely
+                     7 for SGBM reduced size image;
+                     15 for SGBM full size image (1300px and above)
+        num_disparity: max_disp has to be dividable by 16 f. E. HH 192, 256"""
+
+    # get right disparity map
     if right_disp:
-        # cv2.imshow("L", imageL)
-        # cv2.imshow("R", imageR)
         flipped_imageL = cv2.flip(imageL,1)
         flipped_imageR = cv2.flip(imageR,1)
         imageL = flipped_imageR
         imageR = flipped_imageL
-        # cv2.imshow("after L", imageL)
-        # cv2.imshow("after R", imageR)
-        # cv2.waitKey()
-        # cv2.destroyWindow()
+
     p1 = 8 * 3 * window_size ** 2
     p2 = 32 * 3 * window_size ** 2
     param = {
@@ -145,19 +143,24 @@ def get_sgm_disp(imageL, imageR,
         alpha=255,
         norm_type=cv2.NORM_MINMAX
     )
-    return np.uint8(disp_img)
+    disp_img = np.uint8(disp_img)
+    if right_disp:
+        disp_img = cv2.flip(disp_img, 1)
+    return disp_img
+
 
 def depth2disp(depth, focal_key):
     """ Convert depth to disparity for KITTI dataset.
         NOTE: depth must be the original rectified images.
         Ref: https://github.com/mrharicot/monodepth/blob/master/utils/evaluation_utils.py """
-    baseline = 0.54
-    width_to_focal = dict()
-    width_to_focal[1242] = 721.5377
-    width_to_focal[1241] = 718.856
-    width_to_focal[1224] = 707.0493
-    width_to_focal[1226] = 708.2046 # NOTE: [wrong] assume linear to width 1224
-    width_to_focal[1238] = 718.3351
+
+    ## madnet code
+    # width_to_focal = dict()
+    # width_to_focal[1242] = 721.5377
+    # width_to_focal[1241] = 718.856
+    # width_to_focal[1224] = 707.0493
+    # width_to_focal[1226] = 708.2046 # NOTE: [wrong] assume linear to width 1224
+    # width_to_focal[1238] = 718.3351
 
     focal_map = {
     '2011_09_26':7.215377e+02,
@@ -168,19 +171,18 @@ def depth2disp(depth, focal_key):
     }
 
     baseline = 0.54
-    focal_length = width_to_focal[depth.shape[1]]
+    # focal_length = width_to_focal[depth.shape[1]]
     focal_len = focal_map[focal_key]
     invalid_mask = depth <= 0
-    # disp = baseline * focal_length / (depth + 1E-8)
+    # disp =focal_length * baseline / (depth + 1E-8)
     disp = focal_len * baseline / (depth + 1E-8)
-    # disp.inf -> 0
-    disp[invalid_mask] = 0
+    disp[invalid_mask] = 0 # disp.inf -> 0
 
     return disp
 
 def read_depth(path):
     depth = Image.open(path)
-    depth = np.array(depth).astype(np.float) / 256.0 # pixel -> m
+    depth = np.array(depth).astype(np.float) / 256.0 # pixel to meter
     return depth#[:, :, np.newaxis]
 
 
@@ -202,7 +204,7 @@ def get_kitti2017_datapath(kitti_dir, dir_name_list, gt_dir):
         proxy_left_dir = os.path.join(gt_dir, dir_name[:-16], dir_name, f'{args.proxy}_disp','image_02')
         proxy_right_dir = os.path.join(gt_dir, dir_name[:-16], dir_name, f'{args.proxy}_disp','image_03')
 
-
+        # create output directory
         if not os.path.exists(disp_left_dir):
             os.makedirs(disp_left_dir)
         if not os.path.exists(disp_right_dir):
@@ -269,8 +271,6 @@ def main(args):
             # Get ground truth disparity map
             depth_l = read_depth(left_data_path['depth'][idx])
             disp_l = depth2disp(depth_l, left_data_path['depth'][idx][-73:-63])
-            # depth_r = read_depth(right_data_path['depth'][idx])
-            # disp_r = depth2disp(depth_r, right_data_path['depth'][idx][-73:-63])
 
             # Get rgb image
             img_name_l = left_data_path['rgb'][idx]
@@ -278,63 +278,58 @@ def main(args):
             img_l = cv2.imread(img_name_l)
             img_r = cv2.imread(img_name_r)
 
+            #TODO: modify code for right disparity
+
             # Save disparity map
             disp_l_to_save = np.clip(disp_l, 0, MAX_DISP)
             disp_l_to_save = (disp_l_to_save).astype(np.float32)
-            # disp_r_to_save = np.clip(disp_r, 0, MAX_DISP)
-            # disp_r_to_save = (disp_r_to_save).astype(np.float32)
             cv2.imwrite(left_data_path['disp'][idx], disp_l_to_save)
-            # cv2.imwrite(right_data_path['disp'][idx], disp_r_to_save)
 
             # Save proxy disparity map
-            if args.proxy != 'None':
+            if args.proxy != 'none':
                 proxy_l = get_sgm_disp(img_l, img_r)
                 cv2.imwrite(left_data_path['proxy'][idx], proxy_l)
-                if args.save_right:
+                if args.fusion:
                     proxy_r = get_sgm_disp(img_l, img_r, right_disp=True)
-                    cv2.imwrite(right_data_path['proxy'][idx], cv2.flip(proxy_r,1))
+                    cv2.imwrite(right_data_path['proxy'][idx], proxy_r)
 
             if step % 100 == 0:
                 print('{}/{}'.format(step,len(left_data_path['disp'])))
             step+=1
 
     if args.save_csv:
-        #TODO: right_disp ㅈㅓㅈㅏㅇ
-        if args.proxy != 'None':
-            if args.save_right:
-                df = pd.DataFrame(
-                    {'left_rgb': left_data_path['rgb'],
-                     'right_rgb': right_data_path['rgb'],
-                     'left_disp': left_data_path['disp'],
-                     'left_proxy': left_data_path['proxy'],
-                     'right_proxy': right_data_path['proxy']
-                     })
-                df.to_csv(os.path.join(csv_dir, f'kitti_{args.type}_{args.proxy}_fusion.csv'), index=False, header=False)
-            else:
-                df = pd.DataFrame(
-                    {'left_rgb': left_data_path['rgb'],
-                     'right_rgb': right_data_path['rgb'],
-                     'left_disp': left_data_path['disp'],
-                     'proxy_disp': left_data_path['proxy']})
-                df.to_csv(os.path.join(csv_dir, f'kitti_{args.type}_{args.proxy}.csv'), index= False, header=False)
+        df = pd.DataFrame(
+            {'rgb_l': left_data_path['rgb'],
+             'rgb_r': right_data_path['rgb'],
+             'disp_l': left_data_path['disp'],
+             'proxy_l': left_data_path['proxy'],
+             'proxy_r': right_data_path['proxy'],
+             })
+        if args.proxy == 'none':
+            df_to_save = df[['rgb_l','rgb_r','disp_l']]
+            path = os.path.join(csv_dir, f'kitti_{args.type}.csv')
         else:
-            df = pd.DataFrame(
-                {'left_rgb': left_data_path['rgb'],
-                 'right_rgb': right_data_path['rgb'],
-                 'left_disp': left_data_path['disp']})
-            df.to_csv(os.path.join(csv_dir, f'kitti_{args.type}.csv'), index= False, header=False)
+            if args.fusion:
+                df_to_save = df
+                path = os.path.join(csv_dir, f'kitti_{args.type}_{args.proxy}_fusion.csv')
+            else:
+                df_to_save = df[['rgb_l','rgb_r','disp_l','proxy_l']]
+                path = os.path.join(csv_dir, f'kitti_{args.type}_{args.proxy}.csv')
+
+        # save with right disparity
+        df_to_save.to_csv(path, index=False, header=False)
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Script for get data path file and kitti ground truth disparity map')
     parser.add_argument("-i", "--input", help='root path to the kitti raw file', default='/home/cvlab/nfs_clientshare/datasets')
-    parser.add_argument("-o", "--output", help="path to the output folder where the results will be saved", default='/home/cvlab/PycharmProjects/continual_adaptation_deep_stereo/')
+    parser.add_argument("-o", "--output", help="path to the output folder where the results will be saved", default='/home/cvlab/PycharmProjects/continual_stereo/')
     parser.add_argument("--type", help="type of dataset: city, residential, campus, road", required=True)
     parser.add_argument("--save_disp", help="save disparities or not", type=int, default=1)
-    parser.add_argument("--proxy", help="save proxies: None, proxy, sgm", default='None')
+    parser.add_argument("--proxy", help="save proxies: none, proxy, sgm", default='none')
     parser.add_argument("--save_csv", help="save path file to csv or not", type=int, default=1)
-    parser.add_argument("--save_right", type=int, default=0)
-    # TODO: right disparity argument
+    parser.add_argument("--fusion", help="save path file to csv or not", type=int, default=0)
+
 
     args = parser.parse_args()
 
