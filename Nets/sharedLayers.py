@@ -50,6 +50,16 @@ def correlation_tf(x, y, max_disp, stride=1, name='corr'):
 		result = tf.concat(corr_tensors,axis=-1)
 		return result
 
+def conv1d(x, kernel_shape, stride=1, activation=lambda x: tf.maximum(0.1 * x, x), padding='SAME', name='conv', reuse=False, wName='weights', bName='bias', batch_norm=False, training=False):
+    with tf.variable_scope(name, reuse=reuse):
+        W = tf.get_variable(wName, kernel_shape, initializer=INITIALIZER_CONV)
+        b = tf.get_variable(bName, kernel_shape[-1], initializer=INITIALIZER_BIAS)
+        x = tf.nn.conv1d(x, W, stride=stride, padding=padding)
+        x = tf.nn.bias_add(x, b)
+        if batch_norm:
+            x = tf.layers.batch_normalization(x,training=training,momentum=0.99)
+        x = activation(x)
+        return x
 
 def conv2d(x, kernel_shape, strides=1, activation=lambda x: tf.maximum(0.1 * x, x), padding='SAME', name='conv', reuse=False, wName='weights', bName='bias', batch_norm=False, training=False):
     with tf.variable_scope(name, reuse=reuse):

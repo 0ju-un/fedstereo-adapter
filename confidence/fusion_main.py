@@ -1,6 +1,6 @@
 import argparse
 import tensorflow as tf
-from model import OTB
+from fusion_model import OTB
 import os
 
 parser = argparse.ArgumentParser(description='Argument parser')
@@ -23,8 +23,10 @@ parser.add_argument('--q', dest='q', type=str, nargs='+',default=['t'],choices=[
 
 """Custom arguments for running on your own data"""
 parser.add_argument('--image_height', dest='image_height', type=int, default=400, help='image height')
-parser.add_argument('--image_width', dest='image_width', type=int, default=880, help='image width')
+parser.add_argument('--image_width', dest='image_width', type=int, default=1280, help='image width')
 parser.add_argument('--dataset',  dest='dataset', type=str, default='filelist/drivingstereo.txt', help='dataset')
+parser.add_argument('--threshold', dest='threshold', type=float, default=0.7, help='threshold for confidence')
+parser.add_argument('--r_disp', dest='r_disp', type=int, default=0, help='flag for right disparity')
 
 args = parser.parse_args()
 
@@ -48,7 +50,9 @@ def main(_):
                     image_height=args.image_height,
                     image_width=args.image_width,
                     p=args.p, q=args.q, colors=args.colors,
-                    initial_learning_rate=args.initial_learning_rate)
+                    initial_learning_rate=args.initial_learning_rate,
+                    threshold=args.threshold,
+                    r_disp=args.r_disp)
 
         model.run(args)
 

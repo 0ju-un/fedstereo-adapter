@@ -8,13 +8,13 @@ parser = argparse.ArgumentParser(description='Argument parser')
 """Main arguments"""
 parser.add_argument('--mode', dest='mode', type=str, help='select ', choices=['reprojection', 'agreement', 'uniqueness', 'otb', 'otb-online'])
 parser.add_argument('--checkpoint_path', dest='checkpoint_path', type=str, help='path to a specific checkpoint to load')
-parser.add_argument('--output_path', dest='output_path', type=str, help='path where to save confidence maps')
+parser.add_argument('--output_path', dest='output_path', type=str, help='path where to save self-adapting-confidence maps')
 parser.add_argument('--left_dir', dest='left_dir', type=str, help='path to left images')
 parser.add_argument('--right_dir', dest='right_dir', type=str, help='path to right images')
 parser.add_argument('--disp_dir', dest='disp_dir', type=str, help='path to disparity maps')
 
 """Optional arguments"""
-parser.add_argument('--colors', help='Save color confidence maps', action='store_true')
+parser.add_argument('--colors', help='Save color self-adapting-confidence maps', action='store_true')
 parser.add_argument('--cpu', help='Run on cpu', action='store_true')
 parser.add_argument('--mem', dest='mem', type=float, default=0.75, help='Portion of memory')
 parser.add_argument('--initial_learning_rate', dest='initial_learning_rate', type=float, default=0.0001, help='initial learning rate for gradient descent')
@@ -23,7 +23,7 @@ parser.add_argument('--q', dest='q', type=str, nargs='+',default=['t'],choices=[
 
 """Custom arguments for running on your own data"""
 parser.add_argument('--image_height', dest='image_height', type=int, default=400, help='image height')
-parser.add_argument('--image_width', dest='image_width', type=int, default=880, help='image width')
+parser.add_argument('--image_width', dest='image_width', type=int, default=1280, help='image width')
 parser.add_argument('--dataset',  dest='dataset', type=str, default='filelist/drivingstereo.txt', help='dataset')
 
 args = parser.parse_args()

@@ -39,7 +39,7 @@ def read_image_from_disc(image_path,shape=None,dtype=tf.uint8):
 
 class Dataloader(object):
 
-    def __init__(self, dataset, left_dir, right_dir, disp_dir):
+    def __init__(self, dataset, left_dir, right_dir, disp_dir, r_disp=False):
 
         self.dataset = dataset
 
@@ -53,11 +53,22 @@ class Dataloader(object):
         files = tf.string_split([line], ',').values
         split_line = tf.string_split([line], '/').values
 
-        self.left = tf.stack([tf.cast(self.read_image(files[0], [None, None, 3]), tf.float32)], 0)
-        self.right = tf.stack([tf.cast(self.read_image(files[1], [None, None, 3]), tf.float32)], 0)
-        self.disp = tf.stack([tf.cast(self.read_image(files[-1], [None, None, 1], dtype=tf.uint16), tf.float32)], 0) / 256.
+        left_img = tf.stack([tf.cast(self.read_image(files[0], [None, None, 3]), tf.float32)], 0)
+        right_img = tf.stack([tf.cast(self.read_image(files[1], [None, None, 3]), tf.float32)], 0)
+
+        # for right disparity
+        if r_disp:
+            self.left = tf.image.flip_left_right(right_img)
+            self.right = tf.image.flip_left_right(left_img)
+            self.disp_path = files[4]
+            self.disp = tf.image.flip_left_right(tf.stack([tf.cast(self.read_image(self.disp_path, [None, None, 1], dtype=tf.uint16), tf.float32)], 0) / 256.)
+        else:
+            self.left = left_img
+            self.right = right_img
+            self.disp_path = files[3]
+            self.disp = tf.stack([tf.cast(self.read_image(self.disp_path, [None, None, 1], dtype=tf.uint16), tf.float32)], 0) / 256.
         self.filename = split_line[-1]
-        self.disp_path = files[-1]
+
 
     def read_image(self, image_path, shape=None, dtype=tf.uint8, norm=False):
         image_raw = tf.read_file(image_path)

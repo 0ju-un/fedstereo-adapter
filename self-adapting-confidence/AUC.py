@@ -10,8 +10,8 @@ parser = argparse.ArgumentParser(description='AUC')
 """Main arguments"""
 parser.add_argument('--gt_path', type=str, help='path to gt')
 parser.add_argument('--disp_path', type=str, help='path to disp')
-parser.add_argument('--conf_path', type=str, help='path to confidence')
-parser.add_argument('--conf_name', type=str, help='confidence measure name')
+parser.add_argument('--conf_path', type=str, help='path to self-adapting-confidence')
+parser.add_argument('--conf_name', type=str, help='self-adapting-confidence measure name')
 
 """Optional Arguments"""
 parser.add_argument('--dataset', type=str, default='filelist/drivingstereo.txt', help='path to gt')

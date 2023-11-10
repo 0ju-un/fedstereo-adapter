@@ -1,3 +1,4 @@
 groundtruth/
-Real-time-self-adaptive-deep-stereo/
+self-adapting-confidence/
 pretrained_nets/
+output/

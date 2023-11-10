@@ -91,9 +91,9 @@ ROAD_SEQUENCES = [
 def get_sgm_disp(imageL, imageR,
             right_disp = False,
             min_disparity=0,
-            num_disparities=MAX_DISP,
+            num_disparities=16,
             block_size=5,
-            window_size=5,
+            window_size=3,
             disp12_max_diff=1,
             uniqueness_ratio=15,
             speckle_window_size=0,
@@ -203,6 +203,7 @@ def get_kitti2017_datapath(kitti_dir, dir_name_list, gt_dir):
         disp_right_dir = os.path.join(gt_dir, dir_name[:-16], dir_name, 'proj_disp','image_03')
         proxy_left_dir = os.path.join(gt_dir, dir_name[:-16], dir_name, f'{args.proxy}_disp','image_02')
         proxy_right_dir = os.path.join(gt_dir, dir_name[:-16], dir_name, f'{args.proxy}_disp','image_03')
+        # proxy_right_dir = os.path.join(gt_dir, dir_name[:-16], dir_name, 'sgm_disp','image_03')
 
         # create output directory
         if not os.path.exists(disp_left_dir):
@@ -272,6 +273,10 @@ def main(args):
             depth_l = read_depth(left_data_path['depth'][idx])
             disp_l = depth2disp(depth_l, left_data_path['depth'][idx][-73:-63])
 
+            depth_r = read_depth(right_data_path['depth'][idx])
+            disp_r = depth2disp(depth_r, right_data_path['depth'][idx][-73:-63])
+
+
             # Get rgb image
             img_name_l = left_data_path['rgb'][idx]
             img_name_r = right_data_path['rgb'][idx]
@@ -284,6 +289,11 @@ def main(args):
             disp_l_to_save = np.clip(disp_l, 0, MAX_DISP)
             disp_l_to_save = (disp_l_to_save).astype(np.float32)
             cv2.imwrite(left_data_path['disp'][idx], disp_l_to_save)
+
+            # # Save right disparity map
+            # disp_r_to_save = np.clip(disp_r, 0, MAX_DISP)
+            # disp_r_to_save = (disp_r_to_save).astype(np.float32)
+            # cv2.imwrite(right_data_path['disp'][idx], disp_r_to_save)
 
             # Save proxy disparity map
             if args.proxy != 'none':

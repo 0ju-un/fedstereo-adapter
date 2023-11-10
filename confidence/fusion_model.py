@@ -1,4 +1,4 @@
-from dataloader import Dataloader
+from fusion_dataloader import Dataloader
 import tensorflow as tf
 import numpy as np
 import ops
@@ -17,8 +17,9 @@ def count_text_lines(file_path):
 
 class OTB(object):
 
-    def __init__(self, sess, initial_learning_rate, image_height, image_width, mode, dataset, left_dir, right_dir, disp_dir, p, q, colors):
-                                  
+    def __init__(self, sess, initial_learning_rate, image_height, image_width, mode, dataset, left_dir, right_dir, disp_dir, p, q, colors, threshold, r_disp):
+        self.threshold = threshold
+
         self.sess = sess
         self.mode = mode
         self.colors = colors
@@ -31,11 +32,12 @@ class OTB(object):
         self.q = q
 
         # build data pipeline
+        self.r_disp = r_disp
         self.dataset = dataset
         self.left_dir = left_dir
         self.right_dir = right_dir
         self.disp_dir = disp_dir
-        self.dataloader = Dataloader(dataset=self.dataset, left_dir=self.left_dir, right_dir=self.right_dir, disp_dir=self.disp_dir)
+        self.dataloader = Dataloader(dataset=self.dataset, left_dir=self.left_dir, right_dir=self.right_dir, disp_dir=self.disp_dir, r_disp=self.r_disp)
         self.placeholders = {'left':tf.placeholder(tf.float32, [1, self.image_height, self.image_width, 3], name='left'),
                              'right':tf.placeholder(tf.float32, [1, self.image_height, self.image_width, 3], name='right'),
                              'disp':tf.placeholder(tf.float32, [1, self.image_height, self.image_width, 1], name='disparity')}
@@ -125,6 +127,7 @@ class OTB(object):
         left_batch = self.dataloader.left
         right_batch = self.dataloader.right
         image_name = self.dataloader.filename
+        origin_disp_dir = self.dataloader.disp_path
         num_samples = count_text_lines(self.dataset)
 
         if self.mode == 'reprojection':
@@ -167,7 +170,7 @@ class OTB(object):
         print(" [*] Start Testing...")
         bar = progressbar.ProgressBar(max_value=num_samples)
         for step in range(num_samples):
-            batch_left, batch_right, batch_disp, filename = self.sess.run([left_batch, right_batch, disp_batch, image_name])
+            batch_left, batch_right, batch_disp, filename, disp_dir = self.sess.run([left_batch, right_batch, disp_batch, image_name, origin_disp_dir])
 
             val_disp, hpad, wpad = ops.pad(batch_disp, self.image_height, self.image_width)
             val_left, _, _ = ops.pad(batch_left, self.image_height, self.image_width)
@@ -180,17 +183,33 @@ class OTB(object):
 
             confidence = ops.depad(confidence, hpad, wpad)
 
-            outdir = args.output_path + '/' + filename
-            if not os.path.exists(outdir):
-                os.makedirs(outdir)
+            ## file path
+            filename = str(filename, "utf-8")
+            disp_dir = str(disp_dir, "utf-8")[:-len(filename)] #tensor to str
+            disp_dir = disp_dir.replace('sgm_disp', 'proxy_disp')
+            disp_path = disp_dir + filename
 
-            confidence_file = outdir + '/'+self.mode+'.png'
+            if not os.path.exists(disp_dir):
+                os.makedirs(disp_dir)
+
             c = confidence[0]
             c = (c - np.min(c)) / (np.max(c) - np.min(c))
-            cv2.imwrite(confidence_file, (c * (2**16-1)).astype('uint16'))
-            if self.colors:
-                color_file = outdir + '/'+self.mode+'-color.png'
-                cv2.imwrite(color_file, cv2.applyColorMap(((1-c)*(2**8-1)).astype('uint8'),cv2.COLORMAP_WINTER))
+
+            # proxy filtering
+            threshold = self.threshold
+            cmask = np.zeros(c.shape,dtype=bool)
+            cmask[c > threshold] = True
+            sparse_disp = batch_disp[0]
+            # print('before filtering', len(sparse_disp[sparse_disp!=0]))
+            sparse_disp = sparse_disp * cmask
+            # print('after filtering', len(sparse_disp[sparse_disp!=0]))
+
+            # save filtered
+            if self.r_disp:
+                save_disp = cv2.flip(sparse_disp, 1)
+            else:
+                save_disp = sparse_disp
+            cv2.imwrite(disp_path, save_disp) # sparse disparity map
 
             bar.update(step+1)
 
