@@ -11,6 +11,14 @@ from tensorflow.python.framework import ops
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import math_ops
 
+#TODO: temp code for print (remove later)
+def print_n_valid(tensor, msg='n_valid: '):
+    indices = tf.where(tf.math.not_equal(tensor, tf.constant(0, tensor.dtype)))
+    n = tf.shape(indices)[0]
+    # print(f'{msg} {indices.shape}')
+    tf.Print(n, [n], msg)
+
+
 def readPFM(file):
     """
     Load a pfm file as a numpy array
@@ -120,7 +128,7 @@ class dataset():
         is_training=True,
         proxies=False,
         shuffle=False,
-        exclusive=False):
+        exclusive=True):
     
         if not os.path.exists(path_file):
             raise Exception('File not found during dataset construction')
@@ -184,9 +192,13 @@ class dataset():
         sparse_proxy, smask_l = self.disp_sample_by_percent(proxy_image)
         sparse_proxy_r, smask_r = self.disp_sample_by_percent(proxy_r_image)
 
+        print_n_valid(proxy_image, 'before masking proxy: ')
         if self._exclusive:
+            smask_l = tf.cast(smask_l,tf.float32)
             proxy_image = proxy_image * smask_l
-
+            # proxy_image = tf.math.multiply(proxy_image, smask_l)
+            # proxy_image = tf.boolean_mask(proxy_image, smask_l)
+            print_n_valid(proxy_image, 'after masking proxy: ')
 
         if self._augment:
             left_image,right_image=preprocessing.augment(left_image,right_image)
@@ -235,26 +247,27 @@ class dataset():
         values = tf.gather_nd(tensor, indices)
         shape = tf.shape(tensor, out_type=tf.int64)
         return tf.SparseTensor(indices, values, shape)
-    # def from_dense(self, tensor, name=None):
-    #     """Converts a dense tensor into a sparse tensor.
-    #
-    #     Only elements not equal to zero will be present in the result. The resulting
-    #     `SparseTensor` has the same dtype and shape as the input.
-    #
-    #     Args:
-    #       tensor: A dense `Tensor` to be converted to a `SparseTensor`.
-    #       name: Optional name for the op.
-    #
-    #     Returns:
-    #       The `SparseTensor`.
-    #     """
-    #     with ops.name_scope(name, "dense_to_sparse"):
-    #         tensor = ops.convert_to_tensor(tensor)
-    #         indices = array_ops.where(
-    #             math_ops.not_equal(tensor, array_ops.constant(0, tensor.dtype)))
-    #         values = array_ops.gather_nd(tensor, indices)
-    #         shape = array_ops.shape(tensor, out_type=tf.dtypes.int64)
-    #         return sparse_tensor.SparseTensor(indices, values, shape)
+
+    def _random_choice(self, inputs, n_samples):
+        """
+        With replacement.
+        Params:
+          inputs (Tensor): Shape [n_states, n_features]
+          n_samples (int): The number of random samples to take.
+        Returns:
+          sampled_inputs (Tensor): Shape [n_samples, n_features]
+        """
+        # (1, n_states) since multinomial requires 2D logits.
+        # uniform_log_prob = tf.expand_dims(tf.zeros(tf.shape(inputs)[0]), 0)
+
+        # ind = tf.multinomial(uniform_log_prob, n_samples)
+        # ind = tf.squeeze(ind, 0, name="random_choice_ind")  # (n_samples,)
+
+        ind = tf.random.shuffle(tf.range(tf.shape(inputs)[0]), 42)[:n_samples]
+        idx = tf.nn.top_k(tf.cast(-ind,tf.int32), n_samples) # minus for ascending order
+        idx = -idx.values
+
+        return tf.gather(inputs, idx)
     def disp_sample_by_percent(self, disparity, sample_percent=0.3):
         h, w, _ = disparity.shape
         sparse = self.from_dense(disparity)
@@ -268,12 +281,25 @@ class dataset():
         # sparse_pgt_uvz = tf.concat(indices, disp_value)
 
         valid_indices = sparse.indices
-        n, k = valid_indices.shape
-        n_pixels = sample_percent * n
-        sample_indices = tf.random.shuffle(valid_indices)[:n_pixels,:]
+        # print_n_valid(valid_indices, 'valid_indices:')
+        n = tf.cast(tf.shape(valid_indices)[0], tf.float32)
+        n_pixels = tf.cast(tf.constant(sample_percent) * n,tf.int32)
+        # print(f'n: {n} n_pixels: {n_pixels}')
+        tf.Print(n, [n], "n: ")
+        tf.Print(n_pixels, [n_pixels], "n_pixels: ")
+
+        sample_indices = self._random_choice(valid_indices, n_pixels)
+
+        # sample_indices = tf.multinomial(valid_indices,n_pixels,42)
+        # sample_indices = tf.sort(sample_indices, 0)
+        # tf.Print(sample_indices, [sample_indices[0],sample_indices[1],sample_indices[2], sample_indices[3]], "sample_indies: ")
+
+        # sample_indices = valid_indices # delete later
         sample_values = tf.gather_nd(disparity, sample_indices)
-        # smask = tf.ones(disparity.shape)
         smask = tf.sparse_to_dense(sparse_indices=sample_indices,output_shape=disparity.shape, sparse_values=0, default_value=1) # mask for gt disparity
+        # tf.Print(smask,[smask],"smask:")
+        # print_n_valid(sample_indices, 'sample_indices:')
+        # print_n_valid(sample_values, 'sample_values:')
 
 
         sample_indices = tf.cast(sample_indices, tf.float32) # TODO: why dimension 3????
