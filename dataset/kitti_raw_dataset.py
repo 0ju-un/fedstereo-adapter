@@ -91,9 +91,9 @@ ROAD_SEQUENCES = [
 def get_sgm_disp(imageL, imageR,
             right_disp = False,
             min_disparity=0,
-            num_disparities=16,
-            block_size=5,
-            window_size=3,
+            num_disparities=MAX_DISP,
+            block_size=3,
+            window_size=5,
             disp12_max_diff=1,
             uniqueness_ratio=15,
             speckle_window_size=0,
@@ -116,8 +116,10 @@ def get_sgm_disp(imageL, imageR,
         imageL = flipped_imageR
         imageR = flipped_imageL
 
-    p1 = 8 * 3 * window_size ** 2
-    p2 = 32 * 3 * window_size ** 2
+    p1 = window_size * window_size * 4
+    p2 = window_size * window_size * 32
+    # p1 = 8 * 3 * window_size ** 2
+    # p2 = 32 * 3 * window_size ** 2
     param = {
         'minDisparity': min_disparity,
         'numDisparities': num_disparities,

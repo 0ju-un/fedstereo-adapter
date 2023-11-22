@@ -31,6 +31,8 @@ def softmax(x):
 	return np.exp(x) / np.sum(np.exp(x), axis=0)
 
 def main(args):
+
+
 	#load json file config
 	with open(args.blockConfig) as json_data:
 		train_config = json.load(json_data)
@@ -44,7 +46,8 @@ def main(args):
 			num_epochs=1,
 			augment=False,
 			is_training=False,
-			shuffle=False
+			shuffle=False,
+			exclusive=args.exclusive
 		)
 		left_img_batch, right_img_batch, gt_image_batch, px_image_batch,s_px_batch, s_px_r_batch, real_width = data_set.get_batch()
 		inputs={
@@ -157,6 +160,9 @@ def main(args):
 	with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
 		#init stuff
 		sess.run([tf.global_variables_initializer(),tf.local_variables_initializer()])
+
+		#TODO: remove later
+		# sess.run(tf.get_variable('input_reader/px_image_batch:0').eval(session=sess))
 
 		#restore disparity inference weights
 		var_to_restore = weights_utils.get_var_to_restore_list(args.weights, [])
@@ -311,6 +317,10 @@ def main(args):
 			print('All Done, Bye Bye!')
 
 if __name__=='__main__':
+	os.environ['PYTHONHASHSEED'] = '0'
+	tf.set_random_seed(42)
+	np.random.seed(42)
+
 	parser=argparse.ArgumentParser(description='Script for online Adaptation of a Deep Stereo Network')
 	parser.add_argument("-l","--list", help='path to the list file with frames to be processed', required=True)
 	parser.add_argument("-o","--output", help="path to the output folder where the results will be saved", required=True)
@@ -333,6 +343,7 @@ if __name__=='__main__':
 	parser.add_argument("--dilation", help="save the adapted model", type=int,default=1)
 	parser.add_argument("--decay", help="save the adapted model", type=float,default=0.99)
 	parser.add_argument("--uf", help="save the adapted model", type=float,default=0.01)
+	parser.add_argument("--exclusive", help="exclusively guide pgt", type=int,default=0)
 	args=parser.parse_args()
 
 	if not os.path.exists(args.output):

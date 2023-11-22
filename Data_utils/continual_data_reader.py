@@ -114,7 +114,7 @@ class dataset():
             augment=False,
             is_training=True,
             proxies=False,
-            shuffle=True):
+            shuffle=False):
 
         if not os.path.exists(path_file):
             raise Exception('File not found during dataset construction')

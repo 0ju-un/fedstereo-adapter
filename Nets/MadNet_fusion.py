@@ -146,7 +146,7 @@ class MadNet_fusion(Stereo_net.StereoNet):
         names.append('context2')
         input_layer = self._get_layer_as_input(names[-2])
         self._add_to_layers(names[-1], sharedLayers.dilated_conv2d(
-            input_layer, [3, 3, 128, 128], name='context-2', rate=2, activation=att))
+            input_layer, [3, 3, 128, 128], name='context-2', rate=2, activation=att))b
 
         # context-3
         names.append('context3')
@@ -190,11 +190,7 @@ class MadNet_fusion(Stereo_net.StereoNet):
             activation = self._leaky_relu()
 
 
-            #TODO: add mlp
-            # pgt feature
-            # valid_disp = sparse_batch.values
-            # names.append('{}/conv1_1'.format(layer_prefix))
-            # self._add_to_layers(names[-1], sharedLayers.conv1d(valid_disp, [1,1,1, 3], stride=1, name='conv1_1', bName='biases', activation=activation))
+            #TODO: add mlp for pgt feature
             valid_disp = tf.expand_dims(sparse_batch[:,:,3],-1)
             names.append('{}/conv1_1'.format(layer_prefix))
             self._add_to_layers(names[-1], sharedLayers.conv1d(valid_disp, [1,1, 3], stride=1, name='conv1_1', bName='biases', activation=activation))
@@ -207,9 +203,7 @@ class MadNet_fusion(Stereo_net.StereoNet):
             #TODO: concat img + pgt(convert to img)
             names.append('{}/conv1_3'.format(layer_prefix))
             pgt_fea = self._get_layer_as_input(names[-2])
-            # img = tf.identity(input_batch)
             img = tf.Variable(input_batch)
-            # input_layer = tf.scatter_update(img, sparse_batch[:,:,0:2], sparse_batch[:,:,3])
             indices = tf.cast(sparse_batch[:,:,0:3], tf.int64)
             values = pgt_fea
             img_pgt = tf.scatter_nd_update(img, indices, values)

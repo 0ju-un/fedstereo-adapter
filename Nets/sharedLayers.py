@@ -1,7 +1,7 @@
 import tensorflow as tf
 import os
 
-INITIALIZER_CONV = tf.contrib.layers.xavier_initializer()
+INITIALIZER_CONV = tf.contrib.layers.xavier_initializer(seed=1)
 INITIALIZER_BIAS = tf.constant_initializer(0.0)
 MODE = 'TF'
 

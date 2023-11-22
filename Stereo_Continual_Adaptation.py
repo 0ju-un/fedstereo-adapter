@@ -31,6 +31,8 @@ def softmax(x):
 	return np.exp(x) / np.sum(np.exp(x), axis=0)
 
 def main(args):
+
+
 	#load json file config
 	with open(args.blockConfig) as json_data:
 		train_config = json.load(json_data)
@@ -306,6 +308,10 @@ def main(args):
 			print('All Done, Bye Bye!')
 
 if __name__=='__main__':
+	os.environ['PYTHONHASHSEED'] = '0'
+	tf.set_random_seed(42)
+	np.random.seed(42)
+
 	parser=argparse.ArgumentParser(description='Script for online Adaptation of a Deep Stereo Network')
 	parser.add_argument("-l","--list", help='path to the list file with frames to be processed', required=True)
 	parser.add_argument("-o","--output", help="path to the output folder where the results will be saved", required=True)

@@ -128,7 +128,7 @@ class dataset():
         is_training=True,
         proxies=False,
         shuffle=False,
-        exclusive=True):
+        exclusive=False):
     
         if not os.path.exists(path_file):
             raise Exception('File not found during dataset construction')
@@ -189,16 +189,17 @@ class dataset():
             (left_image,right_image,gt_image,proxy_image,proxy_r_image) = [tf.image.resize_image_with_crop_or_pad(x,self._crop_shape[0],self._crop_shape[1]) for x in [left_image,right_image,gt_image,proxy_image,proxy_r_image]]
 
         #TODO: pgt sampling
-        sparse_proxy, smask_l = self.disp_sample_by_percent(proxy_image)
-        sparse_proxy_r, smask_r = self.disp_sample_by_percent(proxy_r_image)
-
-        print_n_valid(proxy_image, 'before masking proxy: ')
+        # print_n_valid(proxy_image, 'before masking proxy: ')
         if self._exclusive:
+            sparse_proxy, smask_l = self.disp_sample_by_percent(proxy_image, 0.3)
+            sparse_proxy_r, smask_r = self.disp_sample_by_percent(proxy_r_image, 0.3)
             smask_l = tf.cast(smask_l,tf.float32)
             proxy_image = proxy_image * smask_l
-            # proxy_image = tf.math.multiply(proxy_image, smask_l)
-            # proxy_image = tf.boolean_mask(proxy_image, smask_l)
-            print_n_valid(proxy_image, 'after masking proxy: ')
+            # smask_r = tf.cast(smask_r,tf.float32)
+            # proxy_r_image = proxy_r_image * smask_r
+        else:
+            sparse_proxy, smask_l = self.disp_sample_by_percent(proxy_image, 1.0)
+            sparse_proxy_r, smask_r = self.disp_sample_by_percent(proxy_r_image, 1.0)
 
         if self._augment:
             left_image,right_image=preprocessing.augment(left_image,right_image)
@@ -285,8 +286,8 @@ class dataset():
         n = tf.cast(tf.shape(valid_indices)[0], tf.float32)
         n_pixels = tf.cast(tf.constant(sample_percent) * n,tf.int32)
         # print(f'n: {n} n_pixels: {n_pixels}')
-        tf.Print(n, [n], "n: ")
-        tf.Print(n_pixels, [n_pixels], "n_pixels: ")
+        # tf.Print(n, [n], "n: ")
+        # tf.Print(n_pixels, [n_pixels], "n_pixels: ")
 
         sample_indices = self._random_choice(valid_indices, n_pixels)
 
@@ -310,6 +311,8 @@ class dataset():
         sample_values = tf.reshape(sample_values,[-1,1])
         # print(valid_indices,disp_value)
         sparse_uvz = tf.concat([sample_indices,sample_values],-1)
+        uvz_shape = tf.shape(sparse_uvz)
+        # tf.Print(uvz_shape, [uvz_shape], "uvz_shape")
         # print(valid_indices)
         # tf.Print(valid_indices, [valid_indices], "sparse tensor's valid indices: ")
         # tf.Print(disp_value, [disp_value], "sparse tensor's valid values: ")
