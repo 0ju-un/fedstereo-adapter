@@ -39,7 +39,7 @@ def main():
 
         if t.sender and server is not None:
             server.link_sending_client(t)
-    
+
     # Starting threads
     if server is not None:
         server.start()

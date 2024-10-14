@@ -90,7 +90,7 @@ class MADNet2(nn.Module):
         im3_fea = self.feature_extraction(image3, mad)
 
         corr_block = CorrBlock1D
-           
+
         corr_fn6 = corr_block(im2_fea[6], im3_fea[6], radius=2, num_levels=1)
         corr_fn5 = corr_block(im2_fea[5], im3_fea[5], radius=2, num_levels=1)
         corr_fn4 = corr_block(im2_fea[4], im3_fea[4], radius=2, num_levels=1)
@@ -102,8 +102,7 @@ class MADNet2(nn.Module):
         coords0, coords1_4 = self.initialize_flow(im2_fea[4])
         coords0, coords1_3 = self.initialize_flow(im2_fea[3])
         coords0, coords1_2 = self.initialize_flow(im2_fea[2])
-        
-        
+
         corr6 = corr_fn6(coords1_6)
         disp6 = self.decoder6(torch.cat((im2_fea[6],corr6), 1))
         disp6_u = F.interpolate(disp6 if not mad else disp6.detach(), scale_factor=2)*20./32
@@ -151,7 +150,7 @@ class MADNet2(nn.Module):
             self.accumulated_loss += torch.stack([loss[i] * self.loss_weights[i] for i in range(len(loss))],0).detach().cpu()
             loss = sum(loss).mean()
 
-        elif adapt_mode == 'full++':   
+        elif adapt_mode == 'full++':
             # legacy from original MADNet training (classical average reduction without any weights gives almost identical results)
             loss =  [0.001*F.l1_loss(predictions[0][validgt>0], gt[validgt>0], reduction='sum') / 20., 
                     0.001*F.l1_loss(predictions[1][validgt>0], gt[validgt>0], reduction='sum') / 20., 

@@ -27,7 +27,7 @@ def conv2d(in_planes, out_planes, kernel_size, stride, pad, dilation):
 class feature_extraction(nn.Module):
     def __init__(self):
         super(feature_extraction, self).__init__()
-                
+
         self.block1 = nn.Sequential(
             conv2d(3, 16, 3, 2, 1, 1),
             nn.LeakyReLU(negative_slope=0.2, inplace=True),
