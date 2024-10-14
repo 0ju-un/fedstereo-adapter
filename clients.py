@@ -60,7 +60,10 @@ class StereoClient(threading.Thread):
         self.net.load_state_dict(torch.load(config['network']['checkpoint'], torch.device('cuda:%d'%self.gpu))['state_dict'])
         self.net = self.net.module
 
-
+        total_params = sum(p.numel() for p in self.net.parameters())
+        total_params_trainable = sum(p.numel() for p in self.net.parameters() if p.requires_grad)
+        print(f"Total params: {total_params}")
+        print(f"Total params trainable: {total_params_trainable}")
 
         self.optimizer = optim.Adam(self.net.parameters(), lr=float(config['adaptation']['lr']), betas=(0.9, 0.999))
 

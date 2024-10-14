@@ -32,24 +32,8 @@ def main():
 
     run_file = args.cfg
 
-    # server = None
-    # print('Clients:\n%s'%str(clients_file))
-    # if args.server is not None:
-    #     print('Server:\n%s'%args.server)
-    #     server = StereoServer(args.server,args)
-
     threads = [StereoClient(i,args,j) for i,j in zip(clients_file,clients_ids)]
 
-    # for t in threads:
-    #     if t.listener and server is not None:
-    #         server.link_listening_client(t)
-    #
-    #     if t.sender and server is not None:
-    #         server.link_sending_client(t)
-    #
-    # # Starting threads
-    # if server is not None:
-    #     server.start()
     for i in range(len(threads)):
         threads[i].start()
     
