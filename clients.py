@@ -21,7 +21,7 @@ import tqdm
 
 class StereoClient(threading.Thread):
 
-    def __init__(self, cfg, args, idx, server=None):
+    def __init__(self, cfg, args, idx, server=None, debug=False):
         
         threading.Thread.__init__(self)
         config = configparser.ConfigParser(converters={'list': lambda x: [i.strip() for i in x.split(',')]})
@@ -60,11 +60,18 @@ class StereoClient(threading.Thread):
         self.net.load_state_dict(torch.load(config['network']['checkpoint'], torch.device('cuda:%d'%self.gpu))['state_dict'])
         self.net = self.net.module
 
+        total_params = sum(p.numel() for p in self.net.parameters())
+        total_params_trainable = sum(p.numel() for p in self.net.parameters() if p.requires_grad)
+        print(f"Total params: {total_params}")
+        print(f"Total params trainable: {total_params_trainable}")
+
         self.optimizer = optim.Adam(self.net.parameters(), lr=float(config['adaptation']['lr']), betas=(0.9, 0.999))
 
         self.current_run = self.runs[0]
         self.loader = self.current_run['loader']
         self.accumulator = {}
+
+        self.debug = debug #!DEBUG
 
     def run(self):
 
@@ -76,11 +83,16 @@ class StereoClient(threading.Thread):
         while not self.bootstrapped:
             time.sleep(0.01)
 
+        a=1
+        if self.debug:
+            from misc import count_parameters
+            count_parameters(self.net)
+            count_parameters(self.net.feature_extraction)
+
         self.net.eval()
         with torch.no_grad() if (self.adapt_mode == 'none') else nullcontext():
             
             for batch_idx, data in enumerate(self.loader):
-
                 if self.server is not None:
                     ret = self.server.gpu_locks[self.gpu].acquire()
                     while not ret:
@@ -95,11 +107,12 @@ class StereoClient(threading.Thread):
                 if 'proxy.png' in data:
                     data['validpr'] = (data['proxy.png']>0).float()
                     data['proxy.png'], data['validpr'] = data['proxy.png'].to('cuda:%d'%self.gpu), data['validpr'].to('cuda:%d'%self.gpu)
-                
+
+                print(data['__key__'])
                 if data['image_02.jpg'].shape[-1] != data['proxy.png'].shape[-1]:
                     data['proxy.png'] = data['proxy.png'][...,:data['image_02.jpg'].shape[-1]]
                     data['validpr'] = data['validpr'][...,:data['image_02.jpg'].shape[-1]]
-
+                
                 # pad images
                 ht, wt = data['image_02.jpg'].shape[-2], data['image_02.jpg'].shape[-1]
                 pad_ht = (((ht // 128) + 1) * 128 - ht) % 128
@@ -136,13 +149,13 @@ class StereoClient(threading.Thread):
                     data['validgt'] = (data['groundtruth.png'] > 0).float()
                     result = kitti_metrics(pred_disp.cpu().numpy(), data['groundtruth.png'].numpy(), data['validgt'].numpy())
                 result['disp'] = pred_disp
-                   
+
                 for k in result:
                     if k != 'disp' and k!= 'errormap':
                         if k not in self.accumulator:
                             self.accumulator[k] = []
                         self.accumulator[k].append(result[k])
-                
+
                 if self.listener or self.args.verbose:
                     self.pbar.set_description("Thread %d, Seq: %s/%s, Frame %s, bad3: %2.2f"%(self.idx, self.current_run['dataset'], self.current_run['domain'], data['__key__'][0], result['bad 3'] if 'bad 3' in result else np.nan))
                     self.pbar.update(1)
@@ -150,7 +163,7 @@ class StereoClient(threading.Thread):
                 if self.server is not None and len(self.server._listening_clients) == 0:
                     self.server.gpu_locks[self.gpu].release()
                     break
-                
+
                 if self.sender and self.server is not None:
 
                     if (batch_idx > 0 and batch_idx % self.server.interval == 0): 
@@ -189,3 +202,6 @@ class StereoClient(threading.Thread):
             metrs += '& %.2f '%np.array(self.accumulator[k]).mean()
 
         print("\nThread %d results on Seq %s:\\\\ \n%s \\\\"%(self.idx,self.current_run['domain'],str(metrs)))
+        print('GPU INFO.....')
+        print(torch.cuda.memory_summary(), end='')
+

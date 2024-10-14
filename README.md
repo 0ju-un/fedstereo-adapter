@@ -154,7 +154,11 @@ Please refer to ``cfg/README.md`` for detailed instructions
 
 ### :rocket: Testing
 
+<<<<<<< HEAD
 ``python run.py --nodelist cfgs/multiple_clients.ini --server cfgs/server.ini``
+=======
+``python run.py --nodelist cfgs/multiple_clients.ini --server cfg/server.ini``
+>>>>>>> 3549d259f52e8d8ed6e7d1be255df1c000e097c1
 
 Arguments:
 
