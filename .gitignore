@@ -1,3 +1,4 @@
 sequences/
 weights/
 __pycache__/
+cfgs/
