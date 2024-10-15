@@ -79,7 +79,20 @@ class feature_extraction(nn.Module):
         out6 = self.block6(out5 if not mad else out5.detach())
 
         return x, out1, out2, out3, out4, out5, out6
+class guidance_encoder(nn.Module):
+    def __init__(self):
+        super(guidance_encoder, self).__init__()
 
+        self.block1 = nn.Sequential(
+            conv2d(3, 16, 3, 2, 1, 1),
+            nn.LeakyReLU(negative_slope=0.2, inplace=True),
+            conv2d(16, 16, 3, 1, 1, 1),
+            nn.LeakyReLU(negative_slope=0.2, inplace=True),
+        )
+
+    def forward(self, x):
+        out = self.block1(x)
+        return out
 class disparity_decoder(nn.Module):
     def __init__(self, in_channels):
         super(disparity_decoder, self).__init__()

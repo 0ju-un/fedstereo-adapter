@@ -17,6 +17,7 @@ parser.add_argument('--nodelist', type=str, default='cfgs/single_client.ini')
 parser.add_argument('--server', type=str, default=None)
 parser.add_argument('--seed', type=int, default=1234)
 parser.add_argument('--cfg', type=str, default='cfgs/client0.ini')
+parser.add_argument('--fusion', action='store_true')
 
 args = parser.parse_args()
 

@@ -57,8 +57,10 @@ class StereoClient(threading.Thread):
         self.net = models_lut[self.model](args)
         self.net = nn.DataParallel(self.net)
         self.net.to('cuda:%d'%self.gpu)
-        self.net.load_state_dict(torch.load(config['network']['checkpoint'], torch.device('cuda:%d'%self.gpu))['state_dict'])
+
+        self.net.load_state_dict(torch.load(config['network']['checkpoint'], torch.device('cuda:%d'%self.gpu))['state_dict'], strict=False)
         self.net = self.net.module
+
 
         total_params = sum(p.numel() for p in self.net.parameters())
         total_params_trainable = sum(p.numel() for p in self.net.parameters() if p.requires_grad)
@@ -105,7 +107,7 @@ class StereoClient(threading.Thread):
                 if data['image_02.jpg'].shape[-1] != data['proxy.png'].shape[-1]:
                     data['proxy.png'] = data['proxy.png'][...,:data['image_02.jpg'].shape[-1]]
                     data['validpr'] = data['validpr'][...,:data['image_02.jpg'].shape[-1]]
-                
+
                 # pad images
                 ht, wt = data['image_02.jpg'].shape[-2], data['image_02.jpg'].shape[-1]
                 pad_ht = (((ht // 128) + 1) * 128 - ht) % 128
@@ -115,6 +117,8 @@ class StereoClient(threading.Thread):
                 data['image_03.jpg'] = F.pad(data['image_03.jpg'], _pad, mode='replicate')
                 
                 pred_disps = self.net(data['image_02.jpg'], data['image_03.jpg'], mad = 'mad' in self.adapt_mode)
+                if self.args.fusion:
+                    pred_disps = self.net(data['image_02.jpg'], data['image_03.jpg'], data['validpr'])
                 
                 # upsample and remove padding for final prediction
                 pred_disp = F.interpolate( pred_disps[0], scale_factor=4., mode='bilinear')[0]*-20.
