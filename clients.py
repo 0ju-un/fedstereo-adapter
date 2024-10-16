@@ -11,6 +11,7 @@ import numpy as np
 import time
 
 import copy
+import os
 
 from models import *
 from misc import *
@@ -23,7 +24,7 @@ import tqdm
 
 class StereoClient(threading.Thread):
 
-    def __init__(self, cfg, args, idx, server=None, logger=None):
+    def __init__(self, cfg, args, idx, server=None, logger=None, exp_dir=None, visualize=True, visualize_interval=100):
         
         threading.Thread.__init__(self)
         config = configparser.ConfigParser(converters={'list': lambda x: [i.strip() for i in x.split(',')]})
@@ -76,21 +77,27 @@ class StereoClient(threading.Thread):
         self.logger.debug(self.args)
         self.logger.debug(self.runs)
 
+        self.exp_dir = exp_dir
+
+        self.visualize = visualize
+        self.visualize_interval = visualize_interval
+        if visualize:
+            self.vis_dir = os.path.join(self.exp_dir, 'out')
+            os.makedirs(self.vis_dir, exist_ok=True)
+
     def run(self):
 
         args=self.args
 
         if self.listener or self.args.verbose:
             self.pbar = tqdm.tqdm(total=self.current_run['loader'].__len__, file=sys.stdout)
-        
+
         while not self.bootstrapped:
             time.sleep(0.01)
 
-        a=1
-
         self.net.eval()
         with torch.no_grad() if (self.adapt_mode == 'none') else nullcontext():
-            
+
             for batch_idx, data in enumerate(self.loader):
                 if self.server is not None:
                     ret = self.server.gpu_locks[self.gpu].acquire()
@@ -102,7 +109,7 @@ class StereoClient(threading.Thread):
                     self.optimizer.zero_grad()
 
                 data['image_02.jpg'], data['image_03.jpg'] = data['image_02.jpg'].to('cuda:%d'%self.gpu), data['image_03.jpg'].to('cuda:%d'%self.gpu)
-                
+
                 if 'proxy.png' in data:
                     data['validpr'] = (data['proxy.png']>0).float()
                     data['proxy.png'], data['validpr'] = data['proxy.png'].to('cuda:%d'%self.gpu), data['validpr'].to('cuda:%d'%self.gpu)
@@ -127,6 +134,12 @@ class StereoClient(threading.Thread):
                 ht, wd = pred_disp.shape[-2:]
                 c = [_pad[2], ht-_pad[3], _pad[0], wd-_pad[1]]
                 pred_disp = pred_disp[..., c[0]:c[1], c[2]:c[3]]
+
+                # visualize (!DEBUG)
+                if batch_idx % self.visualize_interval == 0:
+                    vis_disp = pred_disp.detach().cpu().numpy()
+                    vis_filename = f"{data['__url__'][0].split('/')[-1].split('.')[0]}_{data['__key__'][0]}.png"
+                    cv2.imwrite(os.path.join(self.vis_dir, vis_filename), vis_disp.transpose(1, 2, 0))
 
                 # upsample and remove padding from all predictions (if needed for adaptation)
                 if self.adapt_mode != 'none':

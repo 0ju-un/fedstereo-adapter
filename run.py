@@ -45,9 +45,12 @@ def main():
         a=1
         assert os.path.isdir(WORK_DIR)
         train_serial = str(datetime.datetime.now())
-        if DEBUG: train_serial = f"debug_{train_serial}"
-        LOG_DIR = os.path.join(WORK_DIR, train_serial)
-        os.makedirs(LOG_DIR, exist_ok=True)
+        if DEBUG:
+            train_serial = f"debug" #_{train_serial}"
+            LOG_DIR = os.path.join(WORK_DIR, train_serial)
+            os.makedirs(LOG_DIR, exist_ok=True)
+        else:
+            LOG_DIR = None
 
         root_logger = logging.getLogger(name='')
         root_logger.setLevel(logging.DEBUG)
@@ -56,7 +59,10 @@ def main():
         handler.setFormatter(formatter)
         root_logger.addHandler(handler)
 
-    threads = [StereoClient(i, args, j, server=server, logger=root_logger) for i,j in zip(clients_file,clients_ids)]
+    threads = [StereoClient(i, args, j,
+                            server=server,
+                            logger=root_logger,
+                            exp_dir=LOG_DIR) for i,j in zip(clients_file,clients_ids)]
     a=1
     for t in threads:
         if t.listener and server is not None:
