@@ -1,9 +1,0 @@
-
-.idea/
-.vscode/
-__pycache__/
-
-cfgs/
-sequences/
-weights/
-
