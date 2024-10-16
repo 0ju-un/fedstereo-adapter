@@ -13,7 +13,8 @@ import os
 import logging
 import datetime
 import wandb
-WORK_DIR = './work_dirs'
+
+WORK_DIR = './work_dirs/exp1-base'
 
 DEBUG = True
 
@@ -44,7 +45,7 @@ def main():
         a=1
         assert os.path.isdir(WORK_DIR)
         train_serial = str(datetime.datetime.now())
-        if DEBUG: train_serial = f"debug"
+        if DEBUG: train_serial = f"debug_{train_serial}"
         LOG_DIR = os.path.join(WORK_DIR, train_serial)
         os.makedirs(LOG_DIR, exist_ok=True)
 

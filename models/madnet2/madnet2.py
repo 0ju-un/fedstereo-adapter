@@ -17,10 +17,10 @@ class MADNet2(nn.Module):
         self.decoder3 = disparity_decoder(5+64+1)
         self.decoder2 = disparity_decoder(5+32+1)
 
-        # self.sample_distribution = torch.zeros(5,requires_grad=False)
+        self.sample_distribution = torch.zeros(5,requires_grad=False)
         self.softmax = torch.nn.Softmax()
-        # self.loss_t1, self.loss_t2 = 0, 0
-        # self.last_trained_blocks = []
+        self.loss_t1, self.loss_t2 = 0, 0
+        self.last_trained_blocks = []
         self.updates_histogram = torch.zeros(5,requires_grad=False)
         self.accumulated_loss = torch.zeros(5,requires_grad=False)
         self.loss_weights = [1, 1, 1, 1, 1]

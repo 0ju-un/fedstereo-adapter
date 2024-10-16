@@ -87,10 +87,6 @@ class StereoClient(threading.Thread):
             time.sleep(0.01)
 
         a=1
-        if self.debug:
-            from misc import count_parameters
-            count_parameters(self.net)
-            count_parameters(self.net.feature_extraction)
 
         self.net.eval()
         with torch.no_grad() if (self.adapt_mode == 'none') else nullcontext():
@@ -111,7 +107,7 @@ class StereoClient(threading.Thread):
                     data['validpr'] = (data['proxy.png']>0).float()
                     data['proxy.png'], data['validpr'] = data['proxy.png'].to('cuda:%d'%self.gpu), data['validpr'].to('cuda:%d'%self.gpu)
 
-                print(data['__key__'])
+                # print(data['__key__'])
                 if data['image_02.jpg'].shape[-1] != data['proxy.png'].shape[-1]:
                     data['proxy.png'] = data['proxy.png'][...,:data['image_02.jpg'].shape[-1]]
                     data['validpr'] = data['validpr'][...,:data['image_02.jpg'].shape[-1]]
