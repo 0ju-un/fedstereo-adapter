@@ -60,7 +60,7 @@ class StereoClient(threading.Thread):
         self.net = models_lut[self.model](args)
         self.net = nn.DataParallel(self.net)
         self.net.to('cuda:%d'%self.gpu)
-        self.net.load_state_dict(torch.load(config['network']['checkpoint'], torch.device('cuda:%d'%self.gpu))['state_dict'])
+        self.net.load_state_dict(torch.load(config['network']['checkpoint'], torch.device('cuda:%d'%self.gpu))['state_dict'], strict=False)
         self.net = self.net.module
 
         # count_parameters(self.net)
@@ -135,12 +135,6 @@ class StereoClient(threading.Thread):
                 c = [_pad[2], ht-_pad[3], _pad[0], wd-_pad[1]]
                 pred_disp = pred_disp[..., c[0]:c[1], c[2]:c[3]]
 
-                # visualize (!DEBUG)
-                if batch_idx % self.visualize_interval == 0:
-                    vis_disp = pred_disp.detach().cpu().numpy()
-                    vis_filename = f"{data['__url__'][0].split('/')[-1].split('.')[0]}_{data['__key__'][0]}.png"
-                    cv2.imwrite(os.path.join(self.vis_dir, vis_filename), vis_disp.transpose(1, 2, 0))
-
                 # upsample and remove padding from all predictions (if needed for adaptation)
                 if self.adapt_mode != 'none':
                     pred_disps = [F.interpolate( pred_disps[i], scale_factor=2**(i+2))*-20. for i in range(len(pred_disps))]                
@@ -153,8 +147,8 @@ class StereoClient(threading.Thread):
                     block = self.net.sample_block(self.sample_mode, seed=batch_idx) if ('mad' in self.adapt_mode) else self.net.sample_all()
                     loss = self.net.compute_loss(data['image_02.jpg'], data['image_03.jpg'],
                                                  pred_disps, data['proxy.png'], data['validpr'], adapt_mode=self.adapt_mode, idx=block)
-                    
-                    if self.logger is not None:
+
+                    if self.logger is not None: #!DEBUG
                         self.logger.debug(f"batch_idx: {batch_idx}")
                         self.logger.debug(f"data.__key__: {data['__key__']}")
                         self.logger.debug(f"data.__url__: {data['__url__']}")
@@ -165,6 +159,12 @@ class StereoClient(threading.Thread):
                     self.optimizer.step()
 
                 pred_disp = pred_disp.detach()
+
+                # visualize (!DEBUG)
+                if batch_idx % self.visualize_interval == 0:
+                    vis_disp = pred_disp.cpu().numpy()
+                    vis_filename = f"{data['__url__'][0].split('/')[-1].split('.')[0]}_{data['__key__'][0]}.png"
+                    cv2.imwrite(os.path.join(self.vis_dir, vis_filename), vis_disp.transpose(1, 2, 0))
 
                 result = {}
                 if 'groundtruth.png' in data:

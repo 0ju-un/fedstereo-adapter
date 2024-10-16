@@ -23,6 +23,7 @@ parser.add_argument('--verbose', action='store_true')
 parser.add_argument('--nodelist', type=str, default='cfgs/single_client.ini')
 parser.add_argument('--server', type=str, default=None)
 parser.add_argument('--seed', type=int, default=1234)
+parser.add_argument('--visualize', type=bool, default=True)
 args = parser.parse_args()
 
 def main():
@@ -47,10 +48,8 @@ def main():
         train_serial = str(datetime.datetime.now())
         if DEBUG:
             train_serial = f"debug" #_{train_serial}"
-            LOG_DIR = os.path.join(WORK_DIR, train_serial)
-            os.makedirs(LOG_DIR, exist_ok=True)
-        else:
-            LOG_DIR = None
+        LOG_DIR = os.path.join(WORK_DIR, train_serial)
+        os.makedirs(LOG_DIR, exist_ok=True)
 
         root_logger = logging.getLogger(name='')
         root_logger.setLevel(logging.DEBUG)
@@ -62,7 +61,9 @@ def main():
     threads = [StereoClient(i, args, j,
                             server=server,
                             logger=root_logger,
-                            exp_dir=LOG_DIR) for i,j in zip(clients_file,clients_ids)]
+                            exp_dir=LOG_DIR,
+                            visualize=args.visualize) for i,j in zip(clients_file,clients_ids)]
+
     a=1
     for t in threads:
         if t.listener and server is not None:

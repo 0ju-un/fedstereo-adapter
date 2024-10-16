@@ -9,7 +9,7 @@ class MADNet2(nn.Module):
     def __init__(self, args):
         super().__init__()
         self.args = args
-        
+
         self.feature_extraction = feature_extraction()
         self.decoder6 = disparity_decoder(5+192)
         self.decoder5 = disparity_decoder(5+128+1)
