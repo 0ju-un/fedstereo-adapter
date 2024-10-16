@@ -101,7 +101,7 @@ class StereoClient(threading.Thread):
 
                 if self.adapt_mode != 'none':
                     self.optimizer.zero_grad()
-                
+
                 data['image_02.jpg'], data['image_03.jpg'] = data['image_02.jpg'].to('cuda:%d'%self.gpu), data['image_03.jpg'].to('cuda:%d'%self.gpu)
                 
                 if 'proxy.png' in data:
