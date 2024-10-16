@@ -37,7 +37,7 @@ class MADNet2(nn.Module):
             prob = self.softmax(self.sample_distribution)
             block = np.random.choice(range(self.sample_distribution.shape[0]),size=1,p=prob.numpy())[0]
         else:
-            block = 0 
+            block = 0
         self.updates_histogram[block] += 1
         return block
 

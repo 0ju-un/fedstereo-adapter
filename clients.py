@@ -13,15 +13,17 @@ import time
 import copy
 
 from models import *
+from misc import *
 import sys
-sys.path.append('dataloaders')
-import tar_datasets as datasets
+# sys.path.append('dataloaders')
+# import tar_datasets as datasets
+from dataloaders import tar_datasets as datasets
 
 import tqdm
 
 class StereoClient(threading.Thread):
 
-    def __init__(self, cfg, args, idx, server=None):
+    def __init__(self, cfg, args, idx, server=None, logger=None):
         
         threading.Thread.__init__(self)
         config = configparser.ConfigParser(converters={'list': lambda x: [i.strip() for i in x.split(',')]})
@@ -29,13 +31,13 @@ class StereoClient(threading.Thread):
         self.idx = idx
         self.gpu = int(config['adaptation']['gpu'])
         self.server = server
-        
+
         self.args=args
         self.adapt_mode = config['adaptation']['adapt_mode']
         self.sample_mode = config['adaptation']['sample_mode']
 
         self.model = config['network']['model']
-        
+
         self.sender = config['federated'].getboolean('sender')
         self.listener = config['federated'].getboolean('listener')
         self.bootstrap_countdown = 0 if self.server is None else self.server.bootstrap_countdown 
@@ -60,11 +62,19 @@ class StereoClient(threading.Thread):
         self.net.load_state_dict(torch.load(config['network']['checkpoint'], torch.device('cuda:%d'%self.gpu))['state_dict'])
         self.net = self.net.module
 
+        # count_parameters(self.net)
+        if logger is not None:
+            logger.info(count_parameters(self.net))
+
         self.optimizer = optim.Adam(self.net.parameters(), lr=float(config['adaptation']['lr']), betas=(0.9, 0.999))
 
         self.current_run = self.runs[0]
         self.loader = self.current_run['loader']
         self.accumulator = {}
+
+        self.logger = logger
+        self.logger.debug(self.args)
+        self.logger.debug(self.runs)
 
     def run(self):
 
@@ -122,10 +132,20 @@ class StereoClient(threading.Thread):
                     pred_disps = [pred_disps[i][..., c[0]:c[1], c[2]:c[3]] for i in range(len(pred_disps))] 
                     data['image_02.jpg'] = data['image_02.jpg'][..., c[0]:c[1], c[2]:c[3]]
                     data['image_03.jpg'] = data['image_03.jpg'][..., c[0]:c[1], c[2]:c[3]]
-                
+
                 if self.adapt_mode != 'none':
+                    a=1
                     block = self.net.sample_block(self.sample_mode, seed=batch_idx) if ('mad' in self.adapt_mode) else self.net.sample_all()
-                    loss = self.net.compute_loss(data['image_02.jpg'], data['image_03.jpg'], pred_disps, data['proxy.png'], data['validpr'], adapt_mode=self.adapt_mode, idx=block)
+                    loss = self.net.compute_loss(data['image_02.jpg'], data['image_03.jpg'],
+                                                 pred_disps, data['proxy.png'], data['validpr'], adapt_mode=self.adapt_mode, idx=block)
+                    
+                    if self.logger is not None:
+                        self.logger.debug(f"batch_idx: {batch_idx}")
+                        self.logger.debug(f"data.__key__: {data['__key__']}")
+                        self.logger.debug(f"data.__url__: {data['__url__']}")
+                        self.logger.debug(f"self.net.updates_histogram: {self.net.updates_histogram}")
+                        self.logger.debug(f"block: {block}")
+
                     loss.backward()
                     self.optimizer.step()
             
@@ -189,3 +209,5 @@ class StereoClient(threading.Thread):
             metrs += '& %.2f '%np.array(self.accumulator[k]).mean()
 
         print("\nThread %d results on Seq %s:\\\\ \n%s \\\\"%(self.idx,self.current_run['domain'],str(metrs)))
+        if self.logger is not None:
+            self.logger.info("\nThread %d results on Seq %s:\\\\ \n%s \\\\"%(self.idx,self.current_run['domain'],str(metrs)))
