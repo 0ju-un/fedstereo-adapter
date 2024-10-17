@@ -57,6 +57,8 @@ def main():
         handler = logging.FileHandler(os.path.join(LOG_DIR, 'train.log'))
         handler.setFormatter(formatter)
         root_logger.addHandler(handler)
+    else:
+        root_logger = None
 
     threads = [StereoClient(i, args, j,
                             server=server,

@@ -12,6 +12,7 @@ import time
 
 import copy
 import os
+import shutil
 
 from models import *
 from misc import *
@@ -51,10 +52,10 @@ class StereoClient(threading.Thread):
             domain = config['environment'].getlist('domain')[i]
             subs = int(config['environment'].getlist('subs')[i])
             proxy16 = config['environment'].getboolean('proxy16')
-        
+
             self.runs.append( {'loader': datasets.fetch_single_dataloader(dataset,datapath,domain,subs,proxy16),
-                                'dataset':dataset, 
-                                'domain':domain, 
+                               'dataset':dataset,
+                               'domain':domain,
             })
 
         self.net = models_lut[self.model](args)
@@ -78,6 +79,9 @@ class StereoClient(threading.Thread):
         self.logger.debug(self.runs)
 
         self.exp_dir = exp_dir
+        cfg_path = os.path.join(self.exp_dir, os.path.basename(cfg))
+        assert os.path.isfile(cfg)
+        shutil.copyfile(cfg, cfg_path)
 
         self.visualize = visualize
         self.visualize_interval = visualize_interval
