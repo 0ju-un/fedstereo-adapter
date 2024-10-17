@@ -10,6 +10,8 @@ import torch.nn.functional as F
 import numpy as np
 import time
 
+import wandb
+
 import copy
 
 from models import *
@@ -87,7 +89,6 @@ class StereoClient(threading.Thread):
         with torch.no_grad() if (self.adapt_mode == 'none') else nullcontext():
             
             for batch_idx, data in enumerate(self.loader):
-                a=6
                 if self.server is not None:
                     ret = self.server.gpu_locks[self.gpu].acquire()
                     while not ret:
@@ -115,11 +116,14 @@ class StereoClient(threading.Thread):
                 _pad = [pad_wd//2, pad_wd - pad_wd//2, pad_ht//2, pad_ht - pad_ht//2]
                 data['image_02.jpg'] = F.pad(data['image_02.jpg'], _pad, mode='replicate')
                 data['image_03.jpg'] = F.pad(data['image_03.jpg'], _pad, mode='replicate')
-                
-                pred_disps = self.net(data['image_02.jpg'], data['image_03.jpg'], mad = 'mad' in self.adapt_mode)
+                guide_proxy = data['proxy.png'].clone()
+                guide_proxy = F.pad(guide_proxy, _pad, mode='replicate')
+
                 if self.args.fusion:
-                    pred_disps = self.net(data['image_02.jpg'], data['image_03.jpg'], data['validpr'])
-                
+                    pred_disps = self.net(data['image_02.jpg'], data['image_03.jpg'],guide_proxy)
+                else:
+                    pred_disps = self.net(data['image_02.jpg'], data['image_03.jpg'], mad='mad' in self.adapt_mode)
+
                 # upsample and remove padding for final prediction
                 pred_disp = F.interpolate( pred_disps[0], scale_factor=4., mode='bilinear')[0]*-20.
                 ht, wd = pred_disp.shape[-2:]
@@ -152,6 +156,12 @@ class StereoClient(threading.Thread):
                         if k not in self.accumulator:
                             self.accumulator[k] = []
                         self.accumulator[k].append(result[k])
+
+                ## log wandb
+                wandb_log = {}
+                wandb_log['d1'] = result['bad 3']
+                wandb_log['epe'] = result['epe']
+                wandb.log(wandb_log)
                 
                 if self.listener or self.args.verbose:
                     self.pbar.set_description("Thread %d, Seq: %s/%s, Frame %s, bad3: %2.2f"%(self.idx, self.current_run['dataset'], self.current_run['domain'], data['__key__'][0], result['bad 3'] if 'bad 3' in result else np.nan))

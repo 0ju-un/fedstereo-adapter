@@ -79,19 +79,121 @@ class feature_extraction(nn.Module):
         out6 = self.block6(out5 if not mad else out5.detach())
 
         return x, out1, out2, out3, out4, out5, out6
+
+
 class guidance_encoder(nn.Module):
     def __init__(self):
         super(guidance_encoder, self).__init__()
 
         self.block1 = nn.Sequential(
-            conv2d(3, 16, 3, 2, 1, 1),
+            conv2d(1, 16, 3, 2, 1, 1),
             nn.LeakyReLU(negative_slope=0.2, inplace=True),
             conv2d(16, 16, 3, 1, 1, 1),
             nn.LeakyReLU(negative_slope=0.2, inplace=True),
         )
 
+        self.block2 = nn.Sequential(
+            conv2d(16, 32, 3, 2, 1, 1),
+            nn.LeakyReLU(negative_slope=0.2, inplace=True),
+            conv2d(32, 32, 3, 1, 1, 1),
+            nn.LeakyReLU(negative_slope=0.2, inplace=True),
+        )
+
+        self.block3 = nn.Sequential(
+            conv2d(32, 64, 3, 2, 1, 1),
+            nn.LeakyReLU(negative_slope=0.2, inplace=True),
+            conv2d(64, 64, 3, 1, 1, 1),
+            nn.LeakyReLU(negative_slope=0.2, inplace=True),
+        )
+
+        self.block4 = nn.Sequential(
+            conv2d(64, 96, 3, 2, 1, 1),
+            nn.LeakyReLU(negative_slope=0.2, inplace=True),
+            conv2d(96, 96, 3, 1, 1, 1),
+            nn.LeakyReLU(negative_slope=0.2, inplace=True),
+        )
+
+        self.block5 = nn.Sequential(
+            conv2d(96, 128, 3, 2, 1, 1),
+            nn.LeakyReLU(negative_slope=0.2, inplace=True),
+            conv2d(128, 128, 3, 1, 1, 1),
+            nn.LeakyReLU(negative_slope=0.2, inplace=True),
+        )
+
+        self.block6 = nn.Sequential(
+            conv2d(128, 192, 3, 2, 1, 1),
+            nn.LeakyReLU(negative_slope=0.2, inplace=True),
+            conv2d(192, 192, 3, 1, 1, 1),
+            nn.LeakyReLU(negative_slope=0.2, inplace=True),
+        )
+
+    def forward(self, x, mad=False):
+        out1 = self.block1(x)
+        out2 = self.block2(out1 if not mad else out1.detach())
+        out3 = self.block3(out2 if not mad else out2.detach())
+        out4 = self.block4(out3 if not mad else out3.detach())
+        out5 = self.block5(out4 if not mad else out4.detach())
+        out6 = self.block6(out5 if not mad else out5.detach())
+
+        return x, out1, out2, out3, out4, out5, out6
+
+class guidance_encoder_small(nn.Module):
+    def __init__(self):
+        super(guidance_encoder_small, self).__init__()
+
+        # self.block1 = nn.Sequential(
+        #     conv2d(1, 32, 3, 4, 1, 1),
+        #     nn.LeakyReLU(negative_slope=0.2, inplace=True),
+        #     conv2d(32, 64, 3, 2, 1, 1),
+        #     nn.LeakyReLU(negative_slope=0.2, inplace=True),
+        # )
+        #
+        # self.block2 = nn.Sequential(
+        #     conv2d(64, 128, 3, 4, 1, 1),
+        #     nn.LeakyReLU(negative_slope=0.2, inplace=True),
+        #     conv2d(128, 192, 3, 2, 1, 1),
+        #     nn.LeakyReLU(negative_slope=0.2, inplace=True),
+        # )
+
+        self.block1 = nn.Sequential(
+            conv2d(1, 64, 3, 4, 1, 1),
+            nn.LeakyReLU(negative_slope=0.2, inplace=True),
+            conv2d(64, 64, 3, 1, 1, 1),
+            nn.LeakyReLU(negative_slope=0.2, inplace=True),
+            nn.MaxPool2d(3,2,1),
+        )
+
+        self.block2 = nn.Sequential(
+            conv2d(64, 192, 3, 4, 1, 1),
+            nn.LeakyReLU(negative_slope=0.2, inplace=True),
+            conv2d(192, 192, 3, 1, 1, 1),
+            nn.LeakyReLU(negative_slope=0.2, inplace=True),
+            nn.MaxPool2d(3, 2,1),
+
+        )
+
+    def forward(self, x, mad=False):
+        out1 = self.block1(x)
+        out = self.block2(out1 if not mad else out1.detach())
+
+
+        return out
+class fusion_block(nn.Module):
+    def __init__(self,in_channels,out_channels):
+        super(fusion_block, self).__init__()
+
+        self.block1 = nn.Sequential(
+            nn.Conv2d(in_channels, out_channels, kernel_size=1)
+            # conv2d(in_channels, out_channels, 1, 1, 1, 1),
+            # nn.LeakyReLU(negative_slope=0.2, inplace=True),
+            # conv2d(16, 192*2, 1, 1, 1, 1),
+            # nn.LeakyReLU(negative_slope=0.2, inplace=True),
+        )
+
+
     def forward(self, x):
         out = self.block1(x)
+
         return out
 class disparity_decoder(nn.Module):
     def __init__(self, in_channels):

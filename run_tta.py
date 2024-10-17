@@ -1,6 +1,7 @@
 import threading
 import configparser
 import random
+import wandb
 
 from clients import StereoClient
 from server import StereoServer
@@ -18,6 +19,8 @@ parser.add_argument('--server', type=str, default=None)
 parser.add_argument('--seed', type=int, default=1234)
 parser.add_argument('--cfg', type=str, default='cfgs/client0.ini')
 parser.add_argument('--fusion', action='store_true')
+parser.add_argument('--wandb_name', type=str, default=None) # delete later
+
 
 args = parser.parse_args()
 
@@ -26,6 +29,11 @@ def main():
     torch.manual_seed(args.seed)
     random.seed(args.seed)
     np.random.seed(args.seed)
+    if args.wandb_name == 'test':
+        wandb.init(mode="disabled")
+    else:
+        wandb.init(project='madnet2-adatper',
+                   name=args.wandb_name)
 
     with open(args.nodelist) as f:
         clients_file = [s.strip() for s in f.readlines() ]
