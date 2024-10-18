@@ -154,10 +154,10 @@ class MADNet2(nn.Module):
 
             # legacy from original MADNet training (classical average reduction without any weights gives almost identical results)
         loss =  [0.001*F.l1_loss(predictions[0][validgt>0], gt[validgt>0], reduction='sum') / 20.,
-                0.001*F.l1_loss(predictions[1][validgt>0], gt[validgt>0], reduction='sum') / 20.,
-                0.001*F.l1_loss(predictions[2][validgt>0], gt[validgt>0], reduction='sum') / 20.,
-                0.001*F.l1_loss(predictions[3][validgt>0], gt[validgt>0], reduction='sum') / 20.,
-                0.001*F.l1_loss(predictions[4][validgt>0], gt[validgt>0], reduction='sum') / 20.]
+                 0.001*F.l1_loss(predictions[1][validgt>0], gt[validgt>0], reduction='sum') / 20.,
+                 0.001*F.l1_loss(predictions[2][validgt>0], gt[validgt>0], reduction='sum') / 20.,
+                 0.001*F.l1_loss(predictions[3][validgt>0], gt[validgt>0], reduction='sum') / 20.,
+                 0.001*F.l1_loss(predictions[4][validgt>0], gt[validgt>0], reduction='sum') / 20.]
         self.accumulated_loss += torch.stack([loss[i] * self.loss_weights[i] for i in range(len(loss))],0).detach().cpu()
         loss = sum(loss).mean()
 

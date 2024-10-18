@@ -122,7 +122,7 @@ class StereoClient(threading.Thread):
                 if data['image_02.jpg'].shape[-1] != data['proxy.png'].shape[-1]:
                     data['proxy.png'] = data['proxy.png'][...,:data['image_02.jpg'].shape[-1]]
                     data['validpr'] = data['validpr'][...,:data['image_02.jpg'].shape[-1]]
-                
+
                 # pad images
                 ht, wt = data['image_02.jpg'].shape[-2], data['image_02.jpg'].shape[-1]
                 pad_ht = (((ht // 128) + 1) * 128 - ht) % 128
@@ -132,6 +132,13 @@ class StereoClient(threading.Thread):
                 data['image_03.jpg'] = F.pad(data['image_03.jpg'], _pad, mode='replicate')
 
                 pred_disps = self.net(data['image_02.jpg'], data['image_03.jpg'], mad = 'mad' in self.adapt_mode)
+
+                if len(pred_disps) == 6: #!DEBUG
+                    im2_gat, im3_gat = pred_disps[-1]
+                    pred_disps = pred_disps[:-1]
+                else:
+                    im2_gat, im3_gat = None, None
+                assert len(pred_disps) == 5
 
                 # upsample and remove padding for final prediction
                 pred_disp = F.interpolate( pred_disps[0], scale_factor=4., mode='bilinear')[0]*-20.
@@ -149,8 +156,16 @@ class StereoClient(threading.Thread):
                 if self.adapt_mode != 'none':
                     a=1
                     block = self.net.sample_block(self.sample_mode, seed=batch_idx) if ('mad' in self.adapt_mode) else self.net.sample_all()
-                    loss = self.net.compute_loss(data['image_02.jpg'], data['image_03.jpg'],
-                                                 pred_disps, data['proxy.png'], data['validpr'], adapt_mode=self.adapt_mode, idx=block)
+                    if im2_gat is not None: #!DEBUG
+                        a=1
+                        gates = im2_gat + im3_gat
+                        assert len(gates) == 20
+                        loss = self.net.compute_loss(data['image_02.jpg'], data['image_03.jpg'],
+                                                     pred_disps, data['proxy.png'], data['validpr'], adapt_mode=self.adapt_mode, idx=block,
+                                                     gates=gates)
+                    else:
+                        loss = self.net.compute_loss(data['image_02.jpg'], data['image_03.jpg'],
+                                                     pred_disps, data['proxy.png'], data['validpr'], adapt_mode=self.adapt_mode, idx=block)
 
                     if self.logger is not None: #!DEBUG
                         self.logger.debug(f"batch_idx: {batch_idx}")

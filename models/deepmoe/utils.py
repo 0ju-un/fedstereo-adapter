@@ -74,6 +74,7 @@ class MoELayer(nn.Module):
         output = output * gate_values
         return output
 
+
 """"Loss function as described in the paper."""
 
 class deepmoe_loss(nn.Module):
@@ -83,15 +84,40 @@ class deepmoe_loss(nn.Module):
         self.mu = mu
 
     def forward(self, outputs, embedding_outputs, targets, gates):
+        a=1
+
         # Cross-entropy loss for the main outputs
         base_loss = F.cross_entropy(outputs, targets)
-        
+
         # L1 norm of the gate scores
         gate_loss = sum(torch.linalg.norm(g, 1) for g in gates)
-        
-        # Cross-entropy loss for embedding outputs
-        embedding_loss = F.cross_entropy(embedding_outputs, targets)
-        
+
+        # # Cross-entropy loss for embedding outputs
+        embedding_loss = 0
+        # embedding_loss = F.cross_entropy(embedding_outputs, targets)
+
         # Total loss
         total_loss = base_loss + self.lambda_val * gate_loss + self.mu * embedding_loss
         return total_loss
+
+
+class CustomDeepMoELoss(nn.Module):
+    def __init__(self, lambda_val=0.001, mu=1.0):
+        super(CustomDeepMoELoss, self).__init__()
+        self.lambda_val = lambda_val
+
+
+    def forward(self, outputs, targets, gates):
+        a=1
+
+        # Cross-entropy loss for the main outputs
+        base_loss = F.cross_entropy(outputs, targets)
+
+        # L1 norm of the gate scores
+        gate_loss = sum(torch.linalg.norm(g, 1) for g in gates)
+
+        # Total loss
+        total_loss = base_loss + self.lambda_val * gate_loss
+        return total_loss
+
+

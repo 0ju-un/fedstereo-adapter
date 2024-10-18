@@ -152,24 +152,6 @@ class MoECustomBasicBlock(nn.Module):
         out5 = out4 + identity
         out6 = self.relu3(out5)
 
-        # gate_values_1 = self.gate1(embedding)
-        # out = self.conv1(x, gate_values_1)
-        # # out = self.bn1(out)
-        # out = self.relu1(out)
-
-        # gate_values_2 = self.gate2(embedding)
-        # out = self.conv2(out, gate_values_2)
-        # # out = self.bn2(out)
-        # out = self.relu2(out)
-
-        # if self.downsample is not None:
-        #     identity = self.downsample(x)
-        # else:
-        #     identity = x
-
-        # out += identity
-        # out = self.relu3(out)
-
         return out6, [gate_values_1, gate_values_2]
 
 
@@ -184,34 +166,41 @@ class feature_extraction_moe(nn.Module):
                                     nn.LeakyReLU(negative_slope=0.2, inplace=True))
         self.block2 = MoECustomBasicBlock(in_channels=16,
                                           out_channels=32,
+                                        #   emb_dim=16,
                                           kernel_size=3,
                                         #   stride=2,
                                           padding=1,
                                           dilation=1)
         self.block3 = MoECustomBasicBlock(in_channels=32,
                                           out_channels=64,
+                                        #   emb_dim=16,
                                           kernel_size=3,
                                         #   stride=2,
                                           padding=1,
                                           dilation=1)
         self.block4 = MoECustomBasicBlock(in_channels=64,
                                           out_channels=96,
+                                        #   emb_dim=16,
                                           kernel_size=3,
                                         #   stride=2,
                                           padding=1,
                                           dilation=1)
         self.block5 = MoECustomBasicBlock(in_channels=96,
                                           out_channels=128,
+                                        #   emb_dim=16,
                                           kernel_size=3,
                                         #   stride=2,
                                           padding=1,
                                           dilation=1)
         self.block6 = MoECustomBasicBlock(in_channels=128,
                                           out_channels=192,
+                                        #   emb_dim=16,
                                           kernel_size=3,
                                         #   stride=2,
                                           padding=1,
                                           dilation=1)
+
+        # self.avgpool = nn.AdaptiveAvgPool2d((1, 1)) #!DEBUG
 
         if False:
             self.block1 = nn.Sequential(
@@ -271,8 +260,23 @@ class feature_extraction_moe(nn.Module):
         out4, gate4 = self.block4(out3 if not mad else out3.detach(), embed)
         out5, gate5 = self.block5(out4 if not mad else out4.detach(), embed)
         out6, gate6 = self.block6(out5 if not mad else out5.detach(), embed)
+        gates = [x for xs in [gate2, gate3, gate4, gate5, gate6] for x in xs]
 
-        return x, out1, out2, out3, out4, out5, out6
+        return x, out1, out2, out3, out4, out5, out6, gates #[gate2, gate3, gate4, gate5, gate6]
+
+
+    # def forward(self, x, mad=False, embed=None):
+    #     out1 = self.block1(x)
+    #     _embed = self.avgpool(out1).squeeze() #!DEBUG
+    #     out2, gate2 = self.block2(out1 if not mad else out1.detach(), _embed)
+    #     out3, gate3 = self.block3(out2 if not mad else out2.detach(), _embed)
+    #     out4, gate4 = self.block4(out3 if not mad else out3.detach(), _embed)
+    #     out5, gate5 = self.block5(out4 if not mad else out4.detach(), _embed)
+    #     out6, gate6 = self.block6(out5 if not mad else out5.detach(), _embed)
+    #     gates = [x for xs in [gate2, gate3, gate4, gate5, gate6] for x in xs]
+
+    #     return x, out1, out2, out3, out4, out5, out6, gates #[gate2, gate3, gate4, gate5, gate6]
+
 
 
 
