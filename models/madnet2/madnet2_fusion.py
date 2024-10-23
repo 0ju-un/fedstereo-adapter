@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from .corr import CorrBlock1D
 from .submodule import *
+from .submodule_fusion import *
 from ..losses import *
 
 from .madnet2 import MADNet2
@@ -80,9 +81,9 @@ class MADNet2Fusion(MADNet2):
 
         coords1_5 = coords1_5 + disp6_u
         # original correlation
-        # corr5 = corr_fn5(coords1_5)
-        ## correlation cross-attention fusion
-        corr5 = corr_fn5(coords1_5, guide=guide_fea[5], cross_attn_layer=self.cross_attn_layer_5)
+        corr5 = corr_fn5(coords1_5)
+        # ##correlation cross-attention fusion
+        # corr5 = corr_fn5(coords1_5, guide=guide_fea[5], cross_attn_layer=self.cross_attn_layer_5)
 
         # fusion5 = self.fusion_block5(torch.cat((im2_fea[5], corr5, disp6_u, guide_fea[5]),1))
         # fusion5 = torch.cat((im2_fea[5]+guide_fea[5],corr5,disp6_u),1)
@@ -95,9 +96,9 @@ class MADNet2Fusion(MADNet2):
 
         coords1_4 = coords1_4 + disp5_u
         # original correlation
-        # corr4 = corr_fn4(coords1_4)
+        corr4 = corr_fn4(coords1_4)
         ## correlation cross-attention fusion
-        corr4 = corr_fn4(coords1_4, guide=guide_fea[4], cross_attn_layer=self.cross_attn_layer_4)
+        # corr4 = corr_fn4(coords1_4, guide=guide_fea[4], cross_attn_layer=self.cross_attn_layer_4)
 
         # fusion4 = self.fusion_block4(torch.cat((im2_fea[4], corr4, disp5_u, guide_fea[4]),1))
         # fusion4 = torch.cat((im2_fea[4]+guide_fea[4],corr4,disp5_u),1)
@@ -107,9 +108,9 @@ class MADNet2Fusion(MADNet2):
 
         coords1_3 = coords1_3 + disp4_u
         # original correlation
-        # corr3 = corr_fn3(coords1_3)
+        corr3 = corr_fn3(coords1_3)
         ## correlation cross-attention fusion
-        corr3 = corr_fn3(coords1_3, guide=guide_fea[3], cross_attn_layer=self.cross_attn_layer_3)
+        # corr3 = corr_fn3(coords1_3, guide=guide_fea[3], cross_attn_layer=self.cross_attn_layer_3)
 
         # fusion3 = self.fusion_block3(torch.cat((im2_fea[3], corr3, disp4_u, guide_fea[3]),1))
         # fusion3 = torch.cat((im2_fea[3]+guide_fea[3],corr3,disp4_u),1)
@@ -119,9 +120,9 @@ class MADNet2Fusion(MADNet2):
 
         coords1_2 = coords1_2 + disp3_u
         # original correlation
-        # corr2 = corr_fn2(coords1_2)
+        corr2 = corr_fn2(coords1_2)
         ## correlation cross-attention fusion
-        corr2 = corr_fn2(coords1_2, guide=guide_fea[2], cross_attn_layer=self.cross_attn_layer_2)
+        # corr2 = corr_fn2(coords1_2, guide=guide_fea[2], cross_attn_layer=self.cross_attn_layer_2)
 
         # fusion2 = self.fusion_block2(torch.cat((im2_fea[2], corr2, disp3_u, guide_fea[2]),1))
         # fusion2 = torch.cat((im2_fea[2]+guide_fea[2],corr2,disp3_u),1)
