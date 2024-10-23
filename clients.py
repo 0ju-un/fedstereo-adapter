@@ -60,14 +60,22 @@ class StereoClient(threading.Thread):
         self.net = nn.DataParallel(self.net)
         self.net.to('cuda:%d'%self.gpu)
 
-        self.net.load_state_dict(torch.load(config['network']['checkpoint'], torch.device('cuda:%d'%self.gpu))['state_dict'], strict=False)
-        self.net = self.net.module
+        if config['network']['checkpoint'].endswith('tar'):
+            self.net.load_state_dict(torch.load(config['network']['checkpoint'], torch.device('cuda:%d'%self.gpu))['state_dict'], strict=False)
+            self.net = self.net.module
+        else:
+            self.net.load_state_dict(torch.load(config['network']['checkpoint'], torch.device('cuda:%d'%self.gpu)), strict=False)
+            self.net.to('cuda:%d'%self.gpu)
+            self.net = self.net.module
 
 
         total_params = sum(p.numel() for p in self.net.parameters())
         total_params_trainable = sum(p.numel() for p in self.net.parameters() if p.requires_grad)
         print(f"Total params: {total_params}")
         print(f"Total params trainable: {total_params_trainable}")
+
+        wandb.config = {'trainable params':total_params_trainable,
+                      'lr':config['adaptation']['lr']}
 
         self.optimizer = optim.Adam(self.net.parameters(), lr=float(config['adaptation']['lr']), betas=(0.9, 0.999))
 
@@ -132,8 +140,8 @@ class StereoClient(threading.Thread):
 
                 # upsample and remove padding from all predictions (if needed for adaptation)
                 if self.adapt_mode != 'none':
-                    pred_disps = [F.interpolate( pred_disps[i], scale_factor=2**(i+2))*-20. for i in range(len(pred_disps))]                
-                    pred_disps = [pred_disps[i][..., c[0]:c[1], c[2]:c[3]] for i in range(len(pred_disps))] 
+                    pred_disps = [F.interpolate( pred_disps[i], scale_factor=2**(i+2))*-20. for i in range(len(pred_disps))]
+                    pred_disps = [pred_disps[i][..., c[0]:c[1], c[2]:c[3]] for i in range(len(pred_disps))]
                     data['image_02.jpg'] = data['image_02.jpg'][..., c[0]:c[1], c[2]:c[3]]
                     data['image_03.jpg'] = data['image_03.jpg'][..., c[0]:c[1], c[2]:c[3]]
                 
@@ -149,6 +157,8 @@ class StereoClient(threading.Thread):
                 if 'groundtruth.png' in data:
                     data['validgt'] = (data['groundtruth.png'] > 0).float()
                     result = kitti_metrics(pred_disp.cpu().numpy(), data['groundtruth.png'].numpy(), data['validgt'].numpy())
+                    p = pred_disp.cpu().numpy()
+                    g = data['groundtruth.png'].numpy()
                 result['disp'] = pred_disp
                    
                 for k in result:
@@ -159,8 +169,10 @@ class StereoClient(threading.Thread):
 
                 ## log wandb
                 wandb_log = {}
-                wandb_log['d1'] = result['bad 3']
-                wandb_log['epe'] = result['epe']
+                if 'bad 3' in result:
+                    wandb_log['d1'] = result['bad 3']
+                if 'epe' in result:
+                    wandb_log['epe'] = result['epe']
                 wandb.log(wandb_log)
                 
                 if self.listener or self.args.verbose:

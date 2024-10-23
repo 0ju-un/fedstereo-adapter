@@ -17,10 +17,10 @@ class MADNet2(nn.Module):
         self.decoder3 = disparity_decoder(5+64+1)
         self.decoder2 = disparity_decoder(5+32+1)
 
-        # self.sample_distribution = torch.zeros(5,requires_grad=False)
+        self.sample_distribution = torch.zeros(5,requires_grad=False)
         self.softmax = torch.nn.Softmax()
-        # self.loss_t1, self.loss_t2 = 0, 0
-        # self.last_trained_blocks = []
+        self.loss_t1, self.loss_t2 = 0, 0
+        self.last_trained_blocks = []
         self.updates_histogram = torch.zeros(5,requires_grad=False)
         self.accumulated_loss = torch.zeros(5,requires_grad=False)
         self.loss_weights = [1, 1, 1, 1, 1]
@@ -31,48 +31,48 @@ class MADNet2(nn.Module):
         coords = torch.stack(coords[::-1], dim=0).float()
         return coords[None].repeat(batch, 1, 1, 1)
 
-    # @torch.no_grad()
-    # def sample_block(self, sample_mode='prob', seed=0):
-    #     if sample_mode == 'prob':
-    #         prob = self.softmax(self.sample_distribution)
-    #         block = np.random.choice(range(self.sample_distribution.shape[0]),size=1,p=prob.numpy())[0]
-    #     else:
-    #         block = 0
-    #     self.updates_histogram[block] += 1
-    #     return block
+    @torch.no_grad()
+    def sample_block(self, sample_mode='prob', seed=0):
+        if sample_mode == 'prob':
+            prob = self.softmax(self.sample_distribution)
+            block = np.random.choice(range(self.sample_distribution.shape[0]),size=1,p=prob.numpy())[0]
+        else:
+            block = 0
+        self.updates_histogram[block] += 1
+        return block
 
     @torch.no_grad()
     def sample_all(self):
         self.updates_histogram += 1
         return -1
 
-    # @torch.no_grad()
-    # def get_block_to_send(self, sample_mode='prob', seed=0):
-    #     if sample_mode == 'prob':
-    #         prob = (self.softmax(self.updates_histogram))
-    #         block = np.random.choice(range(self.updates_histogram.shape[0]),size=1,p=prob.numpy())[0]
-    #         self.updates_histogram[block] *= 0.9
-    #         self.accumulated_loss *= 0
-    #     else:
-    #         block = 0
-    #
-    #     return block
+    @torch.no_grad()
+    def get_block_to_send(self, sample_mode='prob', seed=0):
+        if sample_mode == 'prob':
+            prob = (self.softmax(self.updates_histogram))
+            block = np.random.choice(range(self.updates_histogram.shape[0]),size=1,p=prob.numpy())[0]
+            self.updates_histogram[block] *= 0.9
+            self.accumulated_loss *= 0
+        else:
+            block = 0
 
-    # @torch.no_grad()
-    # def update_sample_distribution(self, block, new_loss, mode='mad'):
-    #     if self.loss_t1 == 0 and self.loss_t2 == 0:
-    #         self.loss_t1 = new_loss
-    #         self.loss_t2 = new_loss
-    #
-    #     expected_loss = 2 * self.loss_t1 - self.loss_t2
-    #     gain_loss = expected_loss - new_loss
-    #     self.sample_distribution = 0.99 * self.sample_distribution
-    #     for i in self.last_trained_blocks:
-    #         self.sample_distribution[i] += 0.01 * gain_loss
-    #
-    #     self.last_trained_blocks = [block]
-    #     self.loss_t2 = self.loss_t1
-    #     self.loss_t1 = new_loss
+        return block
+
+    @torch.no_grad()
+    def update_sample_distribution(self, block, new_loss, mode='mad'):
+        if self.loss_t1 == 0 and self.loss_t2 == 0:
+            self.loss_t1 = new_loss
+            self.loss_t2 = new_loss
+
+        expected_loss = 2 * self.loss_t1 - self.loss_t2
+        gain_loss = expected_loss - new_loss
+        self.sample_distribution = 0.99 * self.sample_distribution
+        for i in self.last_trained_blocks:
+            self.sample_distribution[i] += 0.01 * gain_loss
+
+        self.last_trained_blocks = [block]
+        self.loss_t2 = self.loss_t1
+        self.loss_t1 = new_loss
 
     def initialize_flow(self, img):
         """ Flow is represented as difference between two coordinate grids flow = coords1 - coords0"""
@@ -142,33 +142,33 @@ class MADNet2(nn.Module):
 
     def compute_loss(self, image2, image3, predictions, gt, validgt, adapt_mode='full', idx=-1):
 
-        ## self_supervised_loss
-        # if adapt_mode == 'full':
-        #     loss =  [self_supervised_loss(predictions[0], image2, image3),
-        #             self_supervised_loss(predictions[1], image2, image3),
-        #             self_supervised_loss(predictions[2], image2, image3),
-        #             self_supervised_loss(predictions[3], image2, image3),
-        #             self_supervised_loss(predictions[4], image2, image3)]
-        #     self.accumulated_loss += torch.stack([loss[i] * self.loss_weights[i] for i in range(len(loss))],0).detach().cpu()
-        #     loss = sum(loss).mean()
+        # self_supervised_loss
+        if adapt_mode == 'full':
+            loss =  [self_supervised_loss(predictions[0], image2, image3),
+                    self_supervised_loss(predictions[1], image2, image3),
+                    self_supervised_loss(predictions[2], image2, image3),
+                    self_supervised_loss(predictions[3], image2, image3),
+                    self_supervised_loss(predictions[4], image2, image3)]
+            self.accumulated_loss += torch.stack([loss[i] * self.loss_weights[i] for i in range(len(loss))],0).detach().cpu()
+            loss = sum(loss).mean()
+        elif adapt_mode == 'full++':
+                # legacy from original MADNet training (classical average reduction without any weights gives almost identical results)
+            loss =  [0.001*F.l1_loss(predictions[0][validgt>0], gt[validgt>0], reduction='sum') / 20.,
+                    0.001*F.l1_loss(predictions[1][validgt>0], gt[validgt>0], reduction='sum') / 20.,
+                    0.001*F.l1_loss(predictions[2][validgt>0], gt[validgt>0], reduction='sum') / 20.,
+                    0.001*F.l1_loss(predictions[3][validgt>0], gt[validgt>0], reduction='sum') / 20.,
+                    0.001*F.l1_loss(predictions[4][validgt>0], gt[validgt>0], reduction='sum') / 20.]
+            self.accumulated_loss += torch.stack([loss[i] * self.loss_weights[i] for i in range(len(loss))],0).detach().cpu()
+            loss = sum(loss).mean()
 
-            # legacy from original MADNet training (classical average reduction without any weights gives almost identical results)
-        loss =  [0.001*F.l1_loss(predictions[0][validgt>0], gt[validgt>0], reduction='sum') / 20.,
-                0.001*F.l1_loss(predictions[1][validgt>0], gt[validgt>0], reduction='sum') / 20.,
-                0.001*F.l1_loss(predictions[2][validgt>0], gt[validgt>0], reduction='sum') / 20.,
-                0.001*F.l1_loss(predictions[3][validgt>0], gt[validgt>0], reduction='sum') / 20.,
-                0.001*F.l1_loss(predictions[4][validgt>0], gt[validgt>0], reduction='sum') / 20.]
-        self.accumulated_loss += torch.stack([loss[i] * self.loss_weights[i] for i in range(len(loss))],0).detach().cpu()
-        loss = sum(loss).mean()
+        # code for modular update
+        elif adapt_mode == 'mad':
+            loss = self_supervised_loss(predictions[idx], image2, image3)
 
-        ## code for modular update
-        # elif adapt_mode == 'mad':
-        #     loss = self_supervised_loss(predictions[idx], image2, image3)
-        #
-        # elif adapt_mode == 'mad++':
-        #     loss = F.l1_loss(predictions[idx][validgt>0], gt[validgt>0])
-        #
-        # if 'mad' in adapt_mode:
-        #     self.update_sample_distribution(idx,loss.cpu(),adapt_mode)
+        elif adapt_mode == 'mad++':
+            loss = F.l1_loss(predictions[idx][validgt>0], gt[validgt>0])
+
+        if 'mad' in adapt_mode:
+            self.update_sample_distribution(idx,loss.cpu(),adapt_mode)
 
         return loss

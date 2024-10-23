@@ -4,17 +4,26 @@ Licensed under MIT
 """
 import torch
 import torch.nn.functional as F
+from .submodule import TransformerCrossAttnLayer
 
 class CorrBlock1D:
-    def __init__(self, fmap2, fmap3, num_levels=4, radius=4, onnx=False):
+    def __init__(self, fmap2, fmap3, num_levels=4, radius=4, onnx=False, guide=None, hidden_dim: int = 48, nhead: int = 8):
         self.num_levels = num_levels
         self.radius = radius
         self.corr_pyramid = []
         self.onnx = onnx
 
+        # self.cross_attn_layer = TransformerCrossAttnLayer(hidden_dim, nhead)
+
+
         # all pairs correlation
         corr = CorrBlock1D.corr(fmap2, fmap3)
         batch, h1, w1, dim, w2 = corr.shape
+        # if guide is not None:
+        #     corr = corr.reshape(batch, h1, w1, w2) # modify later...
+        #     corr = corr.permute(3, 2, 1, 0).flatten(2).permute(1, 2, 0)  # CxWxHxN -> CxWxHN / N H W C
+        #     corr = self.cross_attn_layer(corr, guide)
+        #
         corr = corr.reshape(batch*h1*w1, dim, 1, w2)
 
         self.corr_pyramid.append(corr)
@@ -38,7 +47,7 @@ class CorrBlock1D:
 
         return img
 
-    def __call__(self, coords):
+    def __call__(self, coords, guide=None, cross_attn_layer=None):
         r = self.radius
         coords = coords[:, :1].permute(0, 2, 3, 1)
         batch, h1, w1, _ = coords.shape
@@ -46,6 +55,13 @@ class CorrBlock1D:
         out_pyramid = []
         for i in range(self.num_levels):
             corr = self.corr_pyramid[i]
+
+            if guide is not None:
+                corr = corr.view(batch, h1, w1, -1)  # modify later...
+                corr = corr.permute(3, 2, 1, 0).flatten(2).permute(1, 2, 0)  # CxWxHxN -> CxWxHN / N H W C
+                corr, corr_attn = cross_attn_layer(corr, guide)
+                corr = corr.reshape(batch*h1*w1, 1, 1, -1)
+
             dx = torch.linspace(-r, r, 2*r+1)
             dx = dx.view(1, 1, 2*r+1, 1).to(coords.device)
             x0 = dx + coords.reshape(batch*h1*w1, 1, 1, 1) / 2**i
