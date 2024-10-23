@@ -1,5 +1,5 @@
 sequences/
 weights/
 __pycache__/
-cfgs/
+cfgs/clients/
 wandb/
