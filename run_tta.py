@@ -19,6 +19,8 @@ parser.add_argument('--server', type=str, default=None)
 parser.add_argument('--seed', type=int, default=1234)
 parser.add_argument('--cfg', type=str, default='cfgs/client0.ini')
 parser.add_argument('--fusion', action='store_true')
+parser.add_argument('--save_disp', action='store_true')
+
 parser.add_argument('--wandb_name', type=str, default='test') # delete later
 
 

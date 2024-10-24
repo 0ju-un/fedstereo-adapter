@@ -4,7 +4,7 @@ Licensed under MIT
 """
 import torch
 import torch.nn.functional as F
-from .submodule import TransformerCrossAttnLayer
+from .submodule_fusion import TransformerCrossAttnLayer
 
 class CorrBlock1D:
     def __init__(self, fmap2, fmap3, num_levels=4, radius=4, onnx=False, guide=None, hidden_dim: int = 48, nhead: int = 8):

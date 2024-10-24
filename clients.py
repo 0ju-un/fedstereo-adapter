@@ -21,6 +21,8 @@ import tar_datasets as datasets
 
 import tqdm
 
+import os
+
 class StereoClient(threading.Thread):
 
     def __init__(self, cfg, args, idx, server=None):
@@ -86,6 +88,12 @@ class StereoClient(threading.Thread):
     def run(self):
 
         args=self.args
+
+        if self.args.save_disp:
+            disp_dir = os.path.join('./results',args.wandb_name)
+            if not os.path.exists(disp_dir):
+                os.makedirs(disp_dir)
+        train_step = 0
 
         if self.listener or self.args.verbose:
             self.pbar = tqdm.tqdm(total=self.current_run['loader'].__len__, file=sys.stdout)
@@ -174,10 +182,21 @@ class StereoClient(threading.Thread):
                 if 'epe' in result:
                     wandb_log['epe'] = result['epe']
                 wandb.log(wandb_log)
-                
+
+                if self.args.save_disp and train_step % 500 == 0:
+                    disp_path = os.path.join(disp_dir, "%sframe_%s_pred.png"%(train_step,data['__key__'][0]))
+                    vis_disp = pred_disp.squeeze(0).cpu().numpy()
+                    m = vis_disp.min()
+                    M = vis_disp.max()
+                    vis_disp = (vis_disp - m) / (M - m) * 255.0
+                    vis_disp = vis_disp.astype("uint8")
+                    cv2.imwrite(disp_path, vis_disp)
+                train_step += 1
+
                 if self.listener or self.args.verbose:
                     self.pbar.set_description("Thread %d, Seq: %s/%s, Frame %s, bad3: %2.2f"%(self.idx, self.current_run['dataset'], self.current_run['domain'], data['__key__'][0], result['bad 3'] if 'bad 3' in result else np.nan))
                     self.pbar.update(1)
+
 
                 if self.server is not None and len(self.server._listening_clients) == 0:
                     self.server.gpu_locks[self.gpu].release()
